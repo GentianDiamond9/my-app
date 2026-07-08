@@ -1,43 +1,364 @@
-<!-- views/index.ejs -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>タスク管理アプリ</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タスク管理 & ツリーマップビュー</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; }
-        .task-item { border-bottom: 1px solid #ccc; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .completed { text-decoration: line-through; color: gray; }
-        .importance-3 { border-left: 5px solid red; }
-        .importance-2 { border-left: 5px solid orange; }
-        .importance-1 { border-left: 5px solid blue; }
-        form { margin-top: 20px; background: #f4f4f4; padding: 15px; border-radius: 8px; }
+        /* --- 1. モダンなデザイン・変数の定義 (C# でいうスタイルテーマ) --- */
+        :root {
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #212529;
+            --text-muted: #6c757d;
+            --border-color: #dee2e6;
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --importance-3: #fca5a5;
+            --importance-2: #fde047;
+            --importance-1: #93c5fd;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --primary-color: #6366f1;
+            --primary-hover: #4f46e5;
+            --importance-3: #991b1b;
+            --importance-2: #854d0e;
+            --importance-1: #1e3a8a;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* --- 2. レイアウトパーツ --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .theme-toggle-btn {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+        @media(min-width: 768px) {
+            .main-container { grid-template-columns: 1fr 1fr; }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+
+        /* --- 3. タスクリストのスタイル --- */
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            transition: opacity 0.2s;
+        }
+        .task-item:last-child { border-bottom: none; }
+        
+        .task-info { display: flex; flex-direction: column; gap: 4px; }
+        .completed { text-decoration: line-through; color: var(--text-muted); opacity: 0.6; }
+        .deadline-text { font-size: 0.85rem; color: var(--text-muted); }
+
+        .btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .btn-success { background-color: var(--success-color); color: white; }
+        .btn-danger { background-color: var(--danger-color); color: white; margin-left: 6px; }
+        
+        /* 重要度インジケータ */
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 6px;
+        }
+        .badge-3 { background-color: #ef4444; color: white; }
+        .badge-2 { background-color: #eab308; color: black; }
+        .badge-1 { background-color: #3b82f6; color: white; }
+
+        /* --- 4. ツリーマップのスタイル --- */
+        .treemap-wrapper {
+            width: 100%;
+            height: 350px;
+            background-color: var(--bg-color);
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .treemap-node {
+            position: absolute;
+            box-sizing: border-box;
+            border: 2px solid var(--card-bg);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: all 0.3s;
+            color: #212529; /* ダークモードでも視認性を保つため文字色は固定 */
+            font-weight: bold;
+        }
+        [data-theme="dark"] .treemap-node { color: #ffffff; }
+
+        .treemap-node .node-title { font-size: 0.85rem; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .treemap-node .node-size { font-size: 0.7rem; opacity: 0.8; }
+
+        /* --- 5. フォーム入力 --- */
+        form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        input, select {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            color: var(--text-color);
+        }
+        .btn-primary { background-color: var(--primary-color); color: white; padding: 10px; font-weight: bold; }
+        .btn-primary:hover { background-color: var(--primary-hover); }
     </style>
 </head>
 <body>
-    <h1>マイ・タスク</h1>
-    <div id="taskList">
-        <% tasks.forEach(task => { %>
-            <div class="task-item importance-<%= task.importance %>">
-                <div>
-                    <span class="<%= task.is_completed ? 'completed' : '' %>">
-                        <strong><%= task.title %></strong> 
-                        (期限: <%= new Date(task.deadline).toLocaleDateString() %>)
-                    </span>
-                </div>
-                <div>
-                    <!-- 完了・削除ボタンなどはここに追加できるぞ -->
+
+    <header>
+        <h1>TreeMap Tasks</h1>
+        <button class="theme-toggle-btn" id="themeToggle">🌓 テーマ切り替え</button>
+    </header>
+
+    <div class="main-container">
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+            <div class="card">
+                <h2>マイ・タスク</h2>
+                <div id="taskList">
+                    <% if (tasks.length === 0) { %>
+                        <p style="color: var(--text-muted);">タスクはまだありません。</p>
+                    <% } %>
+                    <% tasks.forEach(task => { %>
+                        <div class="task-item" id="task-<%= task.id %>">
+                            <div class="task-info">
+                                <span class="<%= task.is_completed ? 'completed' : '' %>" id="title-<%= task.id %>">
+                                    <span class="badge badge-<%= task.importance %>">重: <%= task.importance %></span>
+                                    <strong><%= task.title %></strong>
+                                </span>
+                                <span class="deadline-text">⏳ 期限: <%= new Date(task.deadline).toLocaleDateString() %></span>
+                            </div>
+                            <div>
+                                <% if (!task.is_completed) { %>
+                                    <button class="btn btn-success" onclick="toggleComplete(<%= task.id %>)">完了</button>
+                                <% } %>
+                                <button class="btn btn-danger" onclick="deleteTask(<%= task.id %>)">削除</button>
+                            </div>
+                        </div>
+                    <% }) %>
                 </div>
             </div>
-        <% }) %>
+
+            <div class="card">
+                <h3>新しいタスクを追加</h3>
+                <form action="/tasks" method="POST">
+                    <div class="form-group">
+                        <label>タイトル</label>
+                        <input type="text" name="title" required placeholder="例: レポート提出">
+                    </div>
+                    <div class="form-group">
+                        <label>期限</label>
+                        <input type="date" name="deadline" required>
+                    </div>
+                    <div class="form-group">
+                        <label>重要度</label>
+                        <select name="importance">
+                            <option value="1">1 (低)</option>
+                            <option value="2">2 (中)</option>
+                            <option value="3">3 (高)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">タスク作成</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card" style="display: flex; flex-direction: column;">
+            <h2>重要度ツリーマップ</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">※ 未完了タスクの重要度(1〜3)に合わせてタイルのサイズを自動計算します。</p>
+            <div class="treemap-wrapper" id="treemapContainer"></div>
+        </div>
     </div>
 
-    <form action="/tasks" method="POST">
-        <h3>新しいタスクを追加</h3>
-        <div>タイトル: <input type="text" name="title" required></div>
-        <div>期限: <input type="date" name="deadline" required></div>
-        <div>重要度 (1-3): <input type="number" name="importance" min="1" max="3" value="1"></div>
-        <button type="submit">タスク作成</button>
-    </form>
+    <script>
+        // EJSテンプレートから安全に未完了のタスク配列をJavaScriptに引き渡す
+        const rawTasks = <%- JSON.stringify(tasks) %>;
+        let activeTasks = rawTasks.filter(t => !t.is_completed);
+
+        // A. ライト/ダークモードの切り替え制御
+        const themeToggle = document.getElementById('themeToggle');
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            if (currentTheme === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+
+        // B. 相対パスを用いた非同期API通信群 (fetch)
+        async function toggleComplete(id) {
+            try {
+                const response = await fetch(`/tasks/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_completed: true })
+                });
+                if (response.ok) {
+                    // 画面上の文字に打消し線を引く、完了ボタンを消す
+                    document.getElementById(`title-${id}`).classList.add('completed');
+                    const btn = document.querySelector(`#task-${id} .btn-success`);
+                    if(btn) btn.remove();
+                    
+                    // ツリーマップの配列から除外して再描画
+                    activeTasks = activeTasks.filter(t => t.id !== id);
+                    renderTreemap();
+                }
+            } catch (err) {
+                console.error("更新に失敗しました:", err);
+            }
+        }
+
+        async function deleteTask(id) {
+            if (!confirm("このタスクを削除しますか？")) return;
+            try {
+                const response = await fetch(`/tasks/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    document.getElementById(`task-${id}`).remove();
+                    activeTasks = activeTasks.filter(t => t.id !== id);
+                    renderTreemap();
+                }
+            } catch (err) {
+                console.error("削除に失敗しました:", err);
+            }
+        }
+
+        // C. 純粋なJSによる軽量ツリーマップ描画ロジック (Squarified 簡易版)
+        function renderTreemap() {
+            const container = document.getElementById('treemapContainer');
+            container.innerHTML = '';
+            
+            if (activeTasks.length === 0) {
+                container.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">未完了のタスクがありません</div>';
+                return;
+            }
+
+            // 重要度（大きさ）の降順に並び替え
+            const sorted = [...activeTasks].sort((a, b) => b.importance - a.importance);
+            const totalImportance = sorted.reduce((sum, t) => sum + t.importance, 0);
+
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+
+            let x = 0, y = 0;
+            let remainingWidth = containerWidth;
+            let remainingHeight = containerHeight;
+
+            const colors = {
+                3: 'var(--importance-3)',
+                2: 'var(--importance-2)',
+                1: 'var(--importance-1)'
+            };
+
+            sorted.forEach((task, index) => {
+                const node = document.createElement('div');
+                node.className = 'treemap-node';
+                node.style.backgroundColor = colors[task.importance] || 'var(--border-color)';
+                
+                // 幅と高さのどちらが長いかで分割方向を動的に決定 (スライス＆ダイス)
+                let w, h;
+                const percentage = task.importance / totalImportance;
+
+                if (remainingWidth > remainingHeight) {
+                    // 横割分割
+                    w = remainingWidth * (task.importance / sorted.slice(index).reduce((s,t)=>s+t.importance,0));
+                    h = remainingHeight;
+                    node.style.left = `${x}px`;
+                    node.style.top = `${y}px`;
+                    node.style.width = `${w}px`;
+                    node.style.height = `${h}px`;
+                    x += w;
+                    remainingWidth -= w;
+                } else {
+                    // 縦割分割
+                    w = remainingWidth;
+                    h = remainingHeight * (task.importance / sorted.slice(index).reduce((s,t)=>s+t.importance,0));
+                    node.style.left = `${x}px`;
+                    node.style.top = `${y}px`;
+                    node.style.width = `${w}px`;
+                    node.style.height = `${h}px`;
+                    y += h;
+                    remainingHeight -= h;
+                }
+
+                // タイルの中身
+                node.innerHTML = `
+                    <div class="node-title">${task.title}</div>
+                    <div class="node-size">重要度: ${task.importance}</div>
+                `;
+                container.appendChild(node);
+            });
+        }
+
+        // 初回ロード時およびリサイズ時にツリーマップを描画
+        window.addEventListener('load', renderTreemap);
+        window.addEventListener('resize', renderTreemap);
+    </script>
 </body>
 </html>
