@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>タスク管理 & 高機能ツリーマップビュー</title>
     <style>
-        /* --- 1. スタイルテーマ定義 --- */
+        /* --- スタイルテーマ定義 --- */
         :root {
             --bg-color: #f8f9fa;
             --card-bg: #ffffff;
@@ -17,9 +17,6 @@
             --success-color: #10b981;
             --warning-color: #f59e0b;
             --danger-color: #ef4444;
-            --importance-3: #fca5a5;
-            --importance-2: #fde047;
-            --importance-1: #93c5fd;
         }
 
         [data-theme="dark"] {
@@ -30,16 +27,13 @@
             --border-color: #334155;
             --primary-color: #6366f1;
             --primary-hover: #4f46e5;
-            --importance-3: #991b1b;
-            --importance-2: #854d0e;
-            --importance-1: #1e3a8a;
         }
 
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 20px;
             transition: background-color 0.3s, color 0.3s;
@@ -68,7 +62,7 @@
             gap: 24px;
         }
         @media(min-width: 768px) {
-            .main-container { grid-template-columns: 1fr 1fr; }
+            .main-container { grid-template-columns: 1fr 1.2fr; }
         }
 
         .card {
@@ -79,7 +73,7 @@
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
         }
 
-        /* --- 2. タスクリストのスタイル --- */
+        /* --- タスクリスト --- */
         .task-item {
             display: flex;
             justify-content: space-between;
@@ -88,7 +82,6 @@
             border-bottom: 1px solid var(--border-color);
         }
         .task-item:last-child { border-bottom: none; }
-        
         .task-info { display: flex; flex-direction: column; gap: 4px; }
         .completed { text-decoration: line-through; color: var(--text-muted); opacity: 0.6; }
         .deadline-text { font-size: 0.85rem; color: var(--text-muted); }
@@ -100,7 +93,6 @@
             cursor: pointer;
             font-size: 0.85rem;
             font-weight: 500;
-            transition: background-color 0.2s;
         }
         .btn-success { background-color: var(--success-color); color: white; }
         .btn-warning { background-color: var(--warning-color); color: white; }
@@ -113,15 +105,16 @@
             border-radius: 4px;
             font-weight: bold;
             margin-right: 6px;
+            color: white;
         }
-        .badge-3 { background-color: #ef4444; color: white; }
-        .badge-2 { background-color: #eab308; color: black; }
-        .badge-1 { background-color: #3b82f6; color: white; }
+        .badge-3 { background-color: #ef4444; }
+        .badge-2 { background-color: #f59e0b; }
+        .badge-1 { background-color: #3b82f6; }
 
-        /* --- 3. ツリーマップのスタイル --- */
+        /* --- ツリーマップ & オーバーレイ詳細 --- */
         .treemap-wrapper {
             width: 100%;
-            height: 450px;
+            height: 500px;
             background-color: var(--bg-color);
             border: 1px dashed var(--border-color);
             border-radius: 8px;
@@ -132,22 +125,57 @@
         .treemap-node {
             position: absolute;
             box-sizing: border-box;
-            border: 2px solid var(--card-bg);
-            padding: 8px;
+            border: 1px solid var(--card-bg);
+            padding: 6px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
             overflow: hidden;
-            transition: all 0.3s ease-in-out;
-            color: #212529;
-            font-weight: bold;
+            transition: all 0.2s ease-in-out;
+            color: white; /* グラデーションの背景で見やすくするため白文字固定 */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.6); /* 可読性確保 */
+            cursor: pointer;
         }
-        [data-theme="dark"] .treemap-node { color: #ffffff; }
+        .treemap-node:hover {
+            transform: scale(0.99);
+            filter: brightness(1.1);
+            z-index: 10;
+        }
 
-        .treemap-node .node-title { font-size: 0.85rem; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .treemap-node .node-size { font-size: 0.7rem; opacity: 0.8; margin-top: 4px; }
+        .node-title {
+            font-weight: bold;
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .node-size {
+            opacity: 0.9;
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 詳細ポップアップ（オーバーレイ仕様） */
+        .detail-overlay {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            background-color: rgba(15, 23, 42, 0.95);
+            color: #ffffff;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            font-size: 0.9rem;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            pointer-events: none; /* マウスイベントを透過させてツリーマップホバーを邪魔しない */
+        }
 
         form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
         .form-group { display: flex; flex-direction: column; gap: 4px; }
@@ -158,13 +186,13 @@
             background-color: var(--card-bg);
             color: var(--text-color);
         }
-        .btn-primary { background-color: var(--primary-color); color: white; padding: 10px; font-weight: bold; }
+        .btn-primary { background-color: var(--primary-color); color: white; padding: 10px; font-weight: bold; border: none; border-radius: 6px;}
     </style>
 </head>
 <body>
 
     <header>
-        <h1>TreeMap Tasks PRO</h1>
+        <h1>TreeMap Tasks Premium</h1>
         <button class="theme-toggle-btn" id="themeToggle">🌓 テーマ切り替え</button>
     </header>
 
@@ -176,25 +204,27 @@
                     <% if (tasks.length === 0) { %>
                         <p style="color: var(--text-muted);">タスクはまだありません。</p>
                     <% } %>
-                    <% tasks.forEach(task => { %>
+                    <% tasks.forEach(task => { 
+                        const labels = {3: '高', 2: '中', 1: '低'};
+                    %>
                         <div class="task-item" id="task-<%= task.id %>">
                             <div class="task-info">
                                 <span class="<%= task.is_completed ? 'completed' : '' %>" id="title-<%= task.id %>">
-                                    <span class="badge badge-<%= task.importance %>">重要度: <%= task.importance %></span>
+                                    <span class="badge badge-<%= task.importance %>">重要度: <%= labels[task.importance] %></span>
                                     <strong><%= task.title %></strong>
                                 </span>
                                 <span class="deadline-text" id="deadline-<%= task.id %>">
                                     ⏳ 期限: <%= new Date(task.deadline).toLocaleDateString() %>
                                 </span>
                             </div>
-                           <div id="actions-<%= task.id %>">
-    <% if (task.is_completed) { %>
-        <button class="btn btn-warning toggle-btn" data-id="<%= task.id %>" data-status="false">戻す</button>
-    <% } else { %>
-        <button class="btn btn-success toggle-btn" data-id="<%= task.id %>" data-status="true">完了</button>
-    <% } %>
-    <button class="btn btn-danger delete-btn" data-id="<%= task.id %>">削除</button>
-</div>
+                            <div id="actions-<%= task.id %>">
+                                <% if (task.is_completed) { %>
+                                    <button class="btn btn-warning toggle-btn" data-id="<%= task.id %>" data-status="false">戻す</button>
+                                <% } else { %>
+                                    <button class="btn btn-success toggle-btn" data-id="<%= task.id %>" data-status="true">完了</button>
+                                <% } %>
+                                <button class="btn btn-danger delete-btn" data-id="<%= task.id %>">削除</button>
+                            </div>
                         </div>
                     <% }) %>
                 </div>
@@ -205,7 +235,7 @@
                 <form action="/tasks" method="POST">
                     <div class="form-group">
                         <label>タイトル</label>
-                        <input type="text" name="title" required placeholder="例: 重要タスク">
+                        <input type="text" name="title" required placeholder="例: システム設計書の作成">
                     </div>
                     <div class="form-group">
                         <label>期限</label>
@@ -214,9 +244,9 @@
                     <div class="form-group">
                         <label>重要度</label>
                         <select name="importance">
-                            <option value="1">1 (低)</option>
-                            <option value="2">2 (中)</option>
-                            <option value="3">3 (高)</option>
+                            <option value="1">低</option>
+                            <option value="2">中</option>
+                            <option value="3">高</option>
                         </select>
                     </div>
                     <button type="submit" class="btn btn-primary">タスク作成</button>
@@ -224,36 +254,18 @@
             </div>
         </div>
 
-        <div class="card" style="display: flex; flex-direction: column;">
+        <div class="card" style="display: flex; flex-direction: column; position: relative;">
             <h2>状況変化マップ</h2>
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
-                🔥 タイルの面積 ＝ <strong>重要度 ✕ 期限の近さ補正</strong> です。戻したタスクもリアルタイムに再配置されます。
+                🎨 青（作成日）➔ 赤（期限直前）のグラデーション。面積は $Importance^2 / RemainingDays$ で計算されます。
             </p>
             <div class="treemap-wrapper" id="treemapContainer"></div>
+            <div class="detail-overlay" id="detailOverlay"></div>
         </div>
     </div>
 
     <script>
-        // バックエンドから渡された初期タスク配列
         let allTasks = <%- JSON.stringify(tasks) %>;
-
-    // --- 【新規追加】ボタンのクリックイベントを安全に一括キャッチする設定 ---
-    document.getElementById('taskList').addEventListener('click', async (e) => {
-        // 完了 / 戻す ボタンが押されたとき
-        if (e.target.classList.contains('toggle-btn')) {
-            const id = Number(e.target.getAttribute('data-id'));
-            const targetStatus = e.target.getAttribute('data-status') === 'true';
-            await toggleTaskStatus(id, targetStatus);
-        }
-        
-        // 削除ボタンが押されたとき
-        if (e.target.classList.contains('delete-btn')) {
-            const id = Number(e.target.getAttribute('data-id'));
-            await deleteTask(id);
-        }
-    });
-
-        // 今日の日付入力をデフォルトセット
         document.getElementById('defaultDeadline').valueAsDate = new Date();
 
         // A. テーマ切り替え
@@ -270,7 +282,19 @@
             }
         });
 
-        // B. 非同期API制御（状態反転に対応）
+        // B. イベントリスナーによる一括キャッチ
+        document.getElementById('taskList').addEventListener('click', async (e) => {
+            if (e.target.classList.contains('toggle-btn')) {
+                const id = Number(e.target.getAttribute('data-id'));
+                const targetStatus = e.target.getAttribute('data-status') === 'true';
+                await toggleTaskStatus(id, targetStatus);
+            }
+            if (e.target.classList.contains('delete-btn')) {
+                const id = Number(e.target.getAttribute('data-id'));
+                await deleteTask(id);
+            }
+        });
+
         async function toggleTaskStatus(id, targetStatus) {
             try {
                 const response = await fetch(`/tasks/${id}`, {
@@ -278,43 +302,33 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ is_completed: targetStatus })
                 });
-                
                 if (response.ok) {
-                    // 1. メモリ上のデータを更新
                     allTasks = allTasks.map(t => t.id === id ? { ...t, is_completed: targetStatus } : t);
-                    
-                    // 2. DOM（見た目）の即座変更
                     const titleEl = document.getElementById(`title-${id}`);
                     const actionsContainer = document.getElementById(`actions-${id}`);
                     
                     if (targetStatus === true) {
-                        // 完了状態への変更
                         titleEl.classList.add('completed');
-                        // ボタンを「戻す (btn-warning)」に差し替え
                         actionsContainer.innerHTML = `
-                            <button class="btn btn-warning" onclick="toggleTaskStatus(${id}, false)">戻す</button>
-                            <button class="btn btn-danger" onclick="deleteTask(${id})">削除</button>
+                            <button class="btn btn-warning toggle-btn" data-id="${id}" data-status="false">戻す</button>
+                            <button class="btn btn-danger delete-btn" data-id="${id}">削除</button>
                         `;
                     } else {
-                        // 未完了状態（戻す）への変更
                         titleEl.classList.remove('completed');
-                        // ボタンを「完了 (btn-success)」に差し替え
                         actionsContainer.innerHTML = `
-                            <button class="btn btn-success" onclick="toggleTaskStatus(${id}, true)">完了</button>
-                            <button class="btn btn-danger" onclick="deleteTask(${id})">削除</button>
+                            <button class="btn btn-success toggle-btn" data-id="${id}" data-status="true">完了</button>
+                            <button class="btn btn-danger delete-btn" data-id="${id}">削除</button>
                         `;
                     }
-                    
-                    // 3. ツリーマップを再描画
                     renderTreemap();
                 }
             } catch (err) {
-                console.error("更新に失敗しました:", err);
+                console.error(err);
             }
         }
 
         async function deleteTask(id) {
-            if (!confirm("このタスクを削除しますか？")) return;
+            if (!confirm("削除しますか？")) return;
             try {
                 const response = await fetch(`/tasks/${id}`, { method: 'DELETE' });
                 if (response.ok) {
@@ -323,35 +337,64 @@
                     renderTreemap();
                 }
             } catch (err) {
-                console.error("削除に失敗しました:", err);
+                console.error(err);
             }
         }
 
-        // C. 動的重み付けツリーマップ描画ロジック
+        // 🎨 青から赤へ滑らかにRGB補間する関数
+        function getTimelineColor(createdAtStr, deadlineStr) {
+            const now = new Date();
+            const created = new Date(createdAtStr);
+            const deadline = new Date(deadlineStr);
+
+            // 1. 作成日と期日が同じなら強制的に「赤」
+            if (created.toDateString() === deadline.toDateString()) {
+                return 'rgb(239, 68, 68)';
+            }
+
+            const totalDuration = deadline.getTime() - created.getTime();
+            const elapsed = now.getTime() - created.getTime();
+
+            // 進捗割合（0:作成日 ➔ 1:締切日）
+            let ratio = totalDuration > 0 ? elapsed / totalDuration : 1;
+            if (ratio < 0) ratio = 0;
+            if (ratio > 1) ratio = 1;
+
+            // 青(rgb(59, 130, 246)) から 赤(rgb(239, 68, 68)) へ線形補間
+            const r = Math.round(59 + (239 - 59) * ratio);
+            const g = Math.round(130 + (68 - 130) * ratio);
+            const b = Math.round(246 + (68 - 246) * ratio);
+
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // C. アルゴリズム＆レンダリング
         function renderTreemap() {
             const container = document.getElementById('treemapContainer');
+            const overlay = document.getElementById('detailOverlay');
             container.innerHTML = '';
             
             const activeTasks = allTasks.filter(t => !t.is_completed);
-            
             if (activeTasks.length === 0) {
-                container.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted);">🎉 未完了のタスクはありません！</div>';
+                container.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted);">🎉 タスクはすべてクリアされています！</div>';
+                overlay.style.display = 'none';
                 return;
             }
 
             const now = new Date();
+            const labels = {3: '高', 2: '中', 1: '低'};
 
+            // 新計算式によるスコアリング
             const scoredTasks = activeTasks.map(task => {
                 const deadline = new Date(task.deadline);
                 const diffTime = deadline.getTime() - now.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                let timeFactor = 1;
-                if (diffDays <= 0) timeFactor = 5;
-                else if (diffDays <= 3) timeFactor = 3;
-                else if (diffDays <= 7) timeFactor = 2;
-
-                const weight = task.importance * timeFactor;
+                let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                // 0日以下（当日または期限超過）の場合は0.5とする
+                const daysDivisor = diffDays <= 0 ? 0.5 : diffDays;
+                
+                // 数式: 重要度^2 / 残り日数
+                const weight = Math.pow(task.importance, 2) / daysDivisor;
                 return { ...task, weight, diffDays };
             });
 
@@ -362,43 +405,61 @@
             let remainingHeight = container.clientHeight;
             let x = 0, y = 0;
 
-            const colors = { 3: 'var(--importance-3)', 2: 'var(--importance-2)', 1: 'var(--importance-1)' };
-
             sorted.forEach((task, index) => {
                 const node = document.createElement('div');
                 node.className = 'treemap-node';
-                node.style.backgroundColor = colors[task.importance];
+                
+                // 期限に連動した色を設定
+                node.style.backgroundColor = getTimelineColor(task.created_at, task.deadline);
 
                 let w, h;
                 const currentSliceWeight = sorted.slice(index).reduce((s, t) => s + t.weight, 0);
                 const ratio = task.weight / currentSliceWeight;
 
                 if (remainingWidth > remainingHeight) {
-                    w = remainingWidth * ratio;
-                    h = remainingHeight;
-                    node.style.left = `${x}px`;
-                    node.style.top = `${y}px`;
-                    node.style.width = `${w}px`;
-                    node.style.height = `${h}px`;
-                    x += w;
-                    remainingWidth -= w;
+                    w = remainingWidth * ratio; h = remainingHeight;
+                    node.style.left = `${x}px`; node.style.top = `${y}px`;
+                    x += w; remainingWidth -= w;
                 } else {
-                    w = remainingWidth;
-                    h = remainingHeight * ratio;
-                    node.style.left = `${x}px`;
-                    node.style.top = `${y}px`;
-                    node.style.width = `${w}px`;
-                    node.style.height = `${h}px`;
-                    y += h;
-                    remainingHeight -= h;
+                    w = remainingWidth; h = remainingHeight * ratio;
+                    node.style.left = `${x}px`; node.style.top = `${y}px`;
+                    y += h; remainingHeight -= h;
                 }
 
-                let dayText = task.diffDays <= 0 ? "🔥 今日！" : `⏰ あと ${task.diffDays} 日`;
+                node.style.width = `${w}px`;
+                node.style.height = `${h}px`;
+
+                // 📐 タイルの面積(W×H)に応じてフォントサイズを動的に拡大縮小
+                const area = w * h;
+                let fontSize = 0.85; // デフォルト(rem)
+                if (area > 50000) fontSize = 1.3;
+                else if (area > 25000) fontSize = 1.1;
+                else if (area < 8000) fontSize = 0.65; // 極小マップ用
+
+                node.style.fontSize = `${fontSize}rem`;
+
+                let dayText = task.diffDays <= 0 ? "🔥 期限直前/超過" : `⏰ あと ${task.diffDays} 日`;
 
                 node.innerHTML = `
                     <div class="node-title">${task.title}</div>
-                    <div class="node-size">${dayText} (重: ${task.importance})</div>
+                    <div class="node-size" style="font-size: ${fontSize * 0.8}rem;">${dayText}</div>
                 `;
+
+                // 🔍 ホバー時の詳細表示オーバーレイ処理
+                node.addEventListener('mouseenter', () => {
+                    overlay.innerHTML = `
+                        <strong>🗂 タスク名:</strong> ${task.title}<br>
+                        <strong>🚨 重要度:</strong> ${labels[task.importance]} | 
+                        <strong>📅 期限:</strong> ${new Date(task.deadline).toLocaleDateString()} (${dayText})<br>
+                        <strong>📐 計算ウェイト値:</strong> ${task.weight.toFixed(2)}
+                    `;
+                    overlay.style.display = 'block';
+                });
+
+                node.addEventListener('mouseleave', () => {
+                    overlay.style.display = 'none';
+                });
+
                 container.appendChild(node);
             });
         }
