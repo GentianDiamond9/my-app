@@ -187,14 +187,14 @@
                                     ⏳ 期限: <%= new Date(task.deadline).toLocaleDateString() %>
                                 </span>
                             </div>
-                            <div id="actions-<%= task.id %>">
-                                <% if (task.is_completed) { %>
-                                    <button class="btn btn-warning" onclick="toggleTaskStatus(<%= task.id %>, false)">戻す</button>
-                                <% } else { %>
-                                    <button class="btn btn-success" onclick="toggleTaskStatus(<%= task.id %>, true)">完了</button>
-                                <% } %>
-                                <button class="btn btn-danger" onclick="deleteTask(<%= task.id %>)">削除</button>
-                            </div>
+                           <div id="actions-<%= task.id %>">
+    <% if (task.is_completed) { %>
+        <button class="btn btn-warning toggle-btn" data-id="<%= task.id %>" data-status="false">戻す</button>
+    <% } else { %>
+        <button class="btn btn-success toggle-btn" data-id="<%= task.id %>" data-status="true">完了</button>
+    <% } %>
+    <button class="btn btn-danger delete-btn" data-id="<%= task.id %>">削除</button>
+</div>
                         </div>
                     <% }) %>
                 </div>
@@ -236,6 +236,22 @@
     <script>
         // バックエンドから渡された初期タスク配列
         let allTasks = <%- JSON.stringify(tasks) %>;
+
+    // --- 【新規追加】ボタンのクリックイベントを安全に一括キャッチする設定 ---
+    document.getElementById('taskList').addEventListener('click', async (e) => {
+        // 完了 / 戻す ボタンが押されたとき
+        if (e.target.classList.contains('toggle-btn')) {
+            const id = Number(e.target.getAttribute('data-id'));
+            const targetStatus = e.target.getAttribute('data-status') === 'true';
+            await toggleTaskStatus(id, targetStatus);
+        }
+        
+        // 削除ボタンが押されたとき
+        if (e.target.classList.contains('delete-btn')) {
+            const id = Number(e.target.getAttribute('data-id'));
+            await deleteTask(id);
+        }
+    });
 
         // 今日の日付入力をデフォルトセット
         document.getElementById('defaultDeadline').valueAsDate = new Date();
