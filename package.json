@@ -5,7 +5,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "tsx index.ts",
+    "start": "tsx src/app.ts",
     "db:dev": "prisma dev"
   },
   "keywords": [],
