@@ -1,5 +1,6 @@
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL") // 👈 ここに url を復活させます！
 }
 
 generator client {
