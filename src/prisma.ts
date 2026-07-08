@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import config from "../prisma.config"; // 設定ファイルをインポート
 
-// アプリ全体で一つのインスタンスを使い回します
-const prisma = new PrismaClient();
+// 新しい初期化方法
+const prisma = new PrismaClient(config);
 
 export default prisma;
