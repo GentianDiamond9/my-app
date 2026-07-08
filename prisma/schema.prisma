@@ -1,19 +1,19 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+datasource db {
+  provider = "postgresql" // もし SQLite や MySQL を使う場合はここを変更します
+  url      = env("DATABASE_URL")
+}
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql"
-}
+model Task {
+  id           Int      @id @default(autoincrement())
+  title        String
+  deadline     DateTime
+  importance   Int
+  is_completed Boolean  @default(false)
+  created_at   DateTime @default(now())
 
-model User {
-  id   Int    @id @default(autoincrement())
-  name String
-  age  Int?   // これを追加するのじゃ
+  @@map("tasks") // データベース上のテーブル名をスネークケースにマッピング
 }

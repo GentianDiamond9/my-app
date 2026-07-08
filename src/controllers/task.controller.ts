@@ -1,0 +1,82 @@
+import { Request, Response } from "express";
+import { TaskService } from "../services/task.service";
+
+const taskService = new TaskService();
+
+export class TaskController {
+  // GET /tasks
+  async getAll(req: Request, res: Response): Promise<void> {
+    try {
+      const tasks = await taskService.getAllTasks();
+      res.status(200).json(tasks); // 200 OK
+    } catch (error) {
+      res.status(500).json({ message: "Internal Server Error", error });
+    }
+  }
+
+  // POST /tasks
+  async create(req: Request, res: Response): Promise<void> {
+    try {
+      const { title, deadline, importance } = req.body;
+
+      // 簡単なバリデーション (C#の ModelState.IsValid のようなイメージ)
+      if (!title || !deadline || importance === undefined) {
+        res.status(400).json({ message: "Missing required fields" });
+        return;
+      }
+
+      const newTask = await taskService.createTask({
+        title,
+        deadline: new Date(deadline), // 文字列からDate型へ変換
+        importance: Number(importance),
+      });
+
+      res.status(201).json(newTask); // 201 Created
+    } catch (error) {
+      res.status(500).json({ message: "Internal Server Error", error });
+    }
+  }
+
+  // PATCH /tasks/:id
+  async update(req: Request, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id, 10); // URLパラメータからIDを取得 (C#の [FromRoute] に相当)
+      if (isNaN(id)) {
+        res.status(400).json({ message: "Invalid ID format" });
+        return;
+      }
+
+      // リクエストボディから更新データを取得 (C#の [FromBody] に相当)
+      const { title, deadline, importance, is_completed } = req.body;
+
+      const updateData: any = {};
+      if (title !== undefined) updateData.title = title;
+      if (deadline !== undefined) updateData.deadline = new Date(deadline);
+      if (importance !== undefined) updateData.importance = Number(importance);
+      if (is_completed !== undefined)
+        updateData.is_completed = Boolean(is_completed);
+
+      const updatedTask = await taskService.updateTask(id, updateData);
+      res.status(200).json(updatedTask);
+    } catch (error) {
+      // Prismaでレコードが見つからない場合のエラーハンドリング
+      res.status(500).json({ message: "Error updating task", error });
+    }
+  }
+
+  // DELETE /tasks/:id
+  async delete(req: Request, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        res.status(400).json({ message: "Invalid ID format" });
+        return;
+      }
+
+      await taskService.deleteTask(id);
+      res.status(204).send(); // 204 No Content
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting task", error });
+    }
+  }
+}
