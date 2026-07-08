@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>タスク管理 & ツリーマップビュー</title>
+    <title>タスク管理 & 高機能ツリーマップビュー</title>
     <style>
-        /* --- 1. モダンなデザイン・変数の定義 (C# でいうスタイルテーマ) --- */
+        /* --- 1. スタイルテーマ定義 --- */
         :root {
             --bg-color: #f8f9fa;
             --card-bg: #ffffff;
@@ -38,13 +38,12 @@
             font-family: 'Helvetica Neue', Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
             transition: background-color 0.3s, color 0.3s;
         }
 
-        /* --- 2. レイアウトパーツ --- */
         header {
             display: flex;
             justify-content: space-between;
@@ -60,7 +59,6 @@
             border-radius: 20px;
             cursor: pointer;
             font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .main-container {
@@ -80,20 +78,20 @@
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
         }
 
-        /* --- 3. タスクリストのスタイル --- */
+        /* --- 2. タスクリストのスタイル --- */
         .task-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 12px;
             border-bottom: 1px solid var(--border-color);
-            transition: opacity 0.2s;
         }
         .task-item:last-child { border-bottom: none; }
         
         .task-info { display: flex; flex-direction: column; gap: 4px; }
         .completed { text-decoration: line-through; color: var(--text-muted); opacity: 0.6; }
         .deadline-text { font-size: 0.85rem; color: var(--text-muted); }
+        .urgent { color: #ef4444; font-weight: bold; }
 
         .btn {
             padding: 6px 12px;
@@ -106,7 +104,6 @@
         .btn-success { background-color: var(--success-color); color: white; }
         .btn-danger { background-color: var(--danger-color); color: white; margin-left: 6px; }
         
-        /* 重要度インジケータ */
         .badge {
             display: inline-block;
             padding: 2px 6px;
@@ -119,10 +116,10 @@
         .badge-2 { background-color: #eab308; color: black; }
         .badge-1 { background-color: #3b82f6; color: white; }
 
-        /* --- 4. ツリーマップのスタイル --- */
+        /* --- 3. ツリーマップのスタイル --- */
         .treemap-wrapper {
             width: 100%;
-            height: 350px;
+            height: 450px;
             background-color: var(--bg-color);
             border: 1px dashed var(--border-color);
             border-radius: 8px;
@@ -141,17 +138,15 @@
             align-items: center;
             text-align: center;
             overflow: hidden;
-            text-overflow: ellipsis;
-            transition: all 0.3s;
-            color: #212529; /* ダークモードでも視認性を保つため文字色は固定 */
+            transition: all 0.3s ease-in-out;
+            color: #212529;
             font-weight: bold;
         }
         [data-theme="dark"] .treemap-node { color: #ffffff; }
 
         .treemap-node .node-title { font-size: 0.85rem; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .treemap-node .node-size { font-size: 0.7rem; opacity: 0.8; }
+        .treemap-node .node-size { font-size: 0.7rem; opacity: 0.8; margin-top: 4px; }
 
-        /* --- 5. フォーム入力 --- */
         form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
         .form-group { display: flex; flex-direction: column; gap: 4px; }
         input, select {
@@ -162,13 +157,12 @@
             color: var(--text-color);
         }
         .btn-primary { background-color: var(--primary-color); color: white; padding: 10px; font-weight: bold; }
-        .btn-primary:hover { background-color: var(--primary-hover); }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>TreeMap Tasks</h1>
+        <h1>TreeMap Tasks PRO</h1>
         <button class="theme-toggle-btn" id="themeToggle">🌓 テーマ切り替え</button>
     </header>
 
@@ -184,181 +178,15 @@
                         <div class="task-item" id="task-<%= task.id %>">
                             <div class="task-info">
                                 <span class="<%= task.is_completed ? 'completed' : '' %>" id="title-<%= task.id %>">
-                                    <span class="badge badge-<%= task.importance %>">重: <%= task.importance %></span>
+                                    <span class="badge badge-<%= task.importance %>">重要度: <%= task.importance %></span>
                                     <strong><%= task.title %></strong>
                                 </span>
-                                <span class="deadline-text">⏳ 期限: <%= new Date(task.deadline).toLocaleDateString() %></span>
+                                <span class="deadline-text" id="deadline-<%= task.id %>">
+                                    ⏳ 期限: <%= new Date(task.deadline).toLocaleDateString() %>
+                                </span>
                             </div>
-                            <div>
+                            <div id="actions-<%= task.id %>">
                                 <% if (!task.is_completed) { %>
                                     <button class="btn btn-success" onclick="toggleComplete(<%= task.id %>)">完了</button>
                                 <% } %>
-                                <button class="btn btn-danger" onclick="deleteTask(<%= task.id %>)">削除</button>
-                            </div>
-                        </div>
-                    <% }) %>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>新しいタスクを追加</h3>
-                <form action="/tasks" method="POST">
-                    <div class="form-group">
-                        <label>タイトル</label>
-                        <input type="text" name="title" required placeholder="例: レポート提出">
-                    </div>
-                    <div class="form-group">
-                        <label>期限</label>
-                        <input type="date" name="deadline" required>
-                    </div>
-                    <div class="form-group">
-                        <label>重要度</label>
-                        <select name="importance">
-                            <option value="1">1 (低)</option>
-                            <option value="2">2 (中)</option>
-                            <option value="3">3 (高)</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">タスク作成</button>
-                </form>
-            </div>
-        </div>
-
-        <div class="card" style="display: flex; flex-direction: column;">
-            <h2>重要度ツリーマップ</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">※ 未完了タスクの重要度(1〜3)に合わせてタイルのサイズを自動計算します。</p>
-            <div class="treemap-wrapper" id="treemapContainer"></div>
-        </div>
-    </div>
-
-    <script>
-        // EJSテンプレートから安全に未完了のタスク配列をJavaScriptに引き渡す
-        const rawTasks = <%- JSON.stringify(tasks) %>;
-        let activeTasks = rawTasks.filter(t => !t.is_completed);
-
-        // A. ライト/ダークモードの切り替え制御
-        const themeToggle = document.getElementById('themeToggle');
-        if (localStorage.getItem('theme') === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        }
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            if (currentTheme === 'dark') {
-                document.documentElement.removeAttribute('data-theme');
-                localStorage.setItem('theme', 'light');
-            } else {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
-            }
-        });
-
-        // B. 相対パスを用いた非同期API通信群 (fetch)
-        async function toggleComplete(id) {
-            try {
-                const response = await fetch(`/tasks/${id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ is_completed: true })
-                });
-                if (response.ok) {
-                    // 画面上の文字に打消し線を引く、完了ボタンを消す
-                    document.getElementById(`title-${id}`).classList.add('completed');
-                    const btn = document.querySelector(`#task-${id} .btn-success`);
-                    if(btn) btn.remove();
-                    
-                    // ツリーマップの配列から除外して再描画
-                    activeTasks = activeTasks.filter(t => t.id !== id);
-                    renderTreemap();
-                }
-            } catch (err) {
-                console.error("更新に失敗しました:", err);
-            }
-        }
-
-        async function deleteTask(id) {
-            if (!confirm("このタスクを削除しますか？")) return;
-            try {
-                const response = await fetch(`/tasks/${id}`, { method: 'DELETE' });
-                if (response.ok) {
-                    document.getElementById(`task-${id}`).remove();
-                    activeTasks = activeTasks.filter(t => t.id !== id);
-                    renderTreemap();
-                }
-            } catch (err) {
-                console.error("削除に失敗しました:", err);
-            }
-        }
-
-        // C. 純粋なJSによる軽量ツリーマップ描画ロジック (Squarified 簡易版)
-        function renderTreemap() {
-            const container = document.getElementById('treemapContainer');
-            container.innerHTML = '';
-            
-            if (activeTasks.length === 0) {
-                container.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">未完了のタスクがありません</div>';
-                return;
-            }
-
-            // 重要度（大きさ）の降順に並び替え
-            const sorted = [...activeTasks].sort((a, b) => b.importance - a.importance);
-            const totalImportance = sorted.reduce((sum, t) => sum + t.importance, 0);
-
-            const containerWidth = container.clientWidth;
-            const containerHeight = container.clientHeight;
-
-            let x = 0, y = 0;
-            let remainingWidth = containerWidth;
-            let remainingHeight = containerHeight;
-
-            const colors = {
-                3: 'var(--importance-3)',
-                2: 'var(--importance-2)',
-                1: 'var(--importance-1)'
-            };
-
-            sorted.forEach((task, index) => {
-                const node = document.createElement('div');
-                node.className = 'treemap-node';
-                node.style.backgroundColor = colors[task.importance] || 'var(--border-color)';
-                
-                // 幅と高さのどちらが長いかで分割方向を動的に決定 (スライス＆ダイス)
-                let w, h;
-                const percentage = task.importance / totalImportance;
-
-                if (remainingWidth > remainingHeight) {
-                    // 横割分割
-                    w = remainingWidth * (task.importance / sorted.slice(index).reduce((s,t)=>s+t.importance,0));
-                    h = remainingHeight;
-                    node.style.left = `${x}px`;
-                    node.style.top = `${y}px`;
-                    node.style.width = `${w}px`;
-                    node.style.height = `${h}px`;
-                    x += w;
-                    remainingWidth -= w;
-                } else {
-                    // 縦割分割
-                    w = remainingWidth;
-                    h = remainingHeight * (task.importance / sorted.slice(index).reduce((s,t)=>s+t.importance,0));
-                    node.style.left = `${x}px`;
-                    node.style.top = `${y}px`;
-                    node.style.width = `${w}px`;
-                    node.style.height = `${h}px`;
-                    y += h;
-                    remainingHeight -= h;
-                }
-
-                // タイルの中身
-                node.innerHTML = `
-                    <div class="node-title">${task.title}</div>
-                    <div class="node-size">重要度: ${task.importance}</div>
-                `;
-                container.appendChild(node);
-            });
-        }
-
-        // 初回ロード時およびリサイズ時にツリーマップを描画
-        window.addEventListener('load', renderTreemap);
-        window.addEventListener('resize', renderTreemap);
-    </script>
-</body>
-</html>
+                                <button class="btn btn-danger
