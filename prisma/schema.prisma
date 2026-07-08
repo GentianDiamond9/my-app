@@ -1,12 +1,10 @@
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") // 従来の指定方法
+  adapter  = "postgresql" // url ではなく、必ずこれだけにします
 }
 
 generator client {
   provider = "prisma-client-js"
-  // 一部のビルド環境のバグを回避するため、明示的にドライバーアダプターを適用させない指定（標準構成）にします
-  previewFeatures = [] 
 }
 
 model Task {

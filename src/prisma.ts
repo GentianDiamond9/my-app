@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 
-// オプションを渡さず、標準の初期化（自動で環境変数の DATABASE_URL を見に行きます）
+// 設定は上記の prisma.config.js から自動で適用されます
 const prisma = new PrismaClient();
 
 export default prisma;
