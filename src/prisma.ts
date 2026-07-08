@@ -1,6 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 
-// 設定は上記の prisma.config.js から自動で適用されます
-const prisma = new PrismaClient();
+// Prisma v7 で確実に環境変数を掴ませるため、明示的に引数に渡して初期化します
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+});
 
 export default prisma;
