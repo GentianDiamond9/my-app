@@ -1,4 +1,6 @@
-import "dotenv/config"; // 環境変数の読み込み
-import "./src/app"; // 私たちが作ったタスク管理アプリ（src/app.ts）を起動
+// 1. まず確実に環境変数をローカル環境やプロセスにロードします
+import dotenv from "dotenv";
+dotenv.config();
 
-// ※ 元々書いてあった express や EJS の古いコード、app.listen などの記述はすべて消去（上書き）して大丈夫です。
+// 2. 環境変数のロードが完全に終わった「後」に、アプリ本体を動的に読み込んで起動します
+import("./src/app");
