@@ -1,5 +1,4 @@
-import { defineConfig } from "prisma";
-
-export default defineConfig({
+// prisma.config.js
+export default {
   schema: "prisma/schema.prisma",
-});
+};
