@@ -1,6 +1,5 @@
 datasource db {
   provider = "postgresql"
-  adapter  = "postgresql" // url ではなく、必ずこれだけにします
 }
 
 generator client {
