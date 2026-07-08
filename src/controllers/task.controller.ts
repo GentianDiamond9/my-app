@@ -31,7 +31,7 @@ export class TaskController {
         importance: Number(importance),
       });
 
-      res.status(201).json(newTask); // 201 Created
+      res.redirect("/");
     } catch (error) {
       res.status(500).json({ message: "Internal Server Error", error });
     }
@@ -57,7 +57,7 @@ export class TaskController {
         updateData.is_completed = Boolean(is_completed);
 
       const updatedTask = await taskService.updateTask(id, updateData);
-      res.status(200).json(updatedTask);
+      res.redirect("/");
     } catch (error) {
       // Prismaでレコードが見つからない場合のエラーハンドリング
       res.status(500).json({ message: "Error updating task", error });
@@ -74,7 +74,7 @@ export class TaskController {
       }
 
       await taskService.deleteTask(id);
-      res.status(204).send(); // 204 No Content
+      res.redirect("/");
     } catch (error) {
       res.status(500).json({ message: "Error deleting task", error });
     }
