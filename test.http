@@ -1,0 +1,31 @@
+### 1. タスクの作成 (POST)
+POST https://treemap-task.onrender.com/tasks
+Content-Type: application/json
+
+{
+  "title": "TypeScriptの勉強",
+  "deadline": "2026-07-31T23:59:59.000Z",
+  "importance": 5
+}
+
+###
+
+### 2. タスクの一覧取得 (GET)
+GET https://treemap-task.onrender.com/tasks
+
+###
+
+### 3. タスクの更新 (PATCH)
+# ※ 末尾の「1」は、ステップ2で取得できた実際のタスクIDに書き換えてください
+PATCH https://treemap-task.onrender.com/tasks/1
+Content-Type: application/json
+
+{
+  "is_completed": true
+}
+
+###
+
+### 4. タスクの削除 (DELETE)
+# ※ 末尾の「1」は、消したいタスクIDに書き換えてください
+DELETE https://treemap-task.onrender.com/tasks/1
