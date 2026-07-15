@@ -68,15 +68,20 @@
   <body>
     <canvas id="historyCanvas"></canvas>
 
-    <header class="flex justify-between items-center bg-slate-900/80 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 interactive-element">
-    <div>
-        <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+    <div class="overlay-ui flex flex-col h-full justify-between p-6">
+      <header
+        class="flex justify-between items-center bg-slate-900/80 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 interactive-element"
+      >
+        <div>
+          <h1
+            class="text-2xl font-black tracking-tight text-white flex items-center gap-2"
+          >
             🌌 過去の歴史 (Shattered Universe)
-        </h1>
-        <p class="text-xs text-slate-400 mt-0.5">
+          </h1>
+          <p class="text-xs text-slate-400 mt-0.5">
             あなたが今までにこなしたタスクたちです。
-        </p>
-    </div>
+          </p>
+        </div>
         <div class="flex items-center gap-3">
           <a
             href="/"
@@ -103,7 +108,6 @@
         >
       </footer>
     </div>
-
     <script>
       // サーバーから渡された完了済みタスク一覧
       const completedTasks = <%- JSON.stringify(tasks) %>;
@@ -159,22 +163,19 @@
               this.y = Math.random() * (height - 300) + 150;
 
               // 📐 【重要度の面積比例システム】
-              // 面積(S)が重要度(importance)に比例するためには、長さ(半径R)は「重要度の平方根」に比例させる必要があります。
-              // 基準サイズ(重要度1の面積を担う基礎半径) = 65px
               const baseRadius = 60;
-              const scaleFactor = Math.sqrt(this.importance); // 1.0, ~1.414, ~1.732
+              const scaleFactor = Math.sqrt(this.importance);
               this.radius = baseRadius * scaleFactor;
 
-              // 楕円的なかけら感を残すため、横幅と縦幅に少し差を持たせる
+              // 横幅と縦幅
               this.sizeW = this.radius * 2 * 1.1;
               this.sizeH = this.radius * 2 * 0.85;
 
-              // 鋭利な「かけら形状（多角形）」の頂点を生成
+              // 多角形の頂点生成
               this.vertices = [];
-              const numPoints = 6 + Math.floor(Math.random() * 3); // 6〜8角形
+              const numPoints = 6 + Math.floor(Math.random() * 3);
               for (let i = 0; i < numPoints; i++) {
                   const angle = (i / numPoints) * Math.PI * 2;
-                  // 外周にランダムな歪みを加え、機械的ではない割れたガラス片を再現
                   const offsetRadius = 0.8 + Math.random() * 0.3;
                   this.vertices.push({
                       x: Math.cos(angle) * (this.sizeW / 2) * offsetRadius,
@@ -182,7 +183,7 @@
                   });
               }
 
-              // 移動速度ベクトル（等速直線運動）
+              // 速度
               const moveAngle = Math.random() * Math.PI * 2;
               const speed = 0.3 + Math.random() * 0.5;
               this.vx = Math.cos(moveAngle) * speed;
@@ -191,15 +192,14 @@
               this.origVx = this.vx;
               this.origVy = this.vy;
 
-              // 回転パラメータ
+              // 回転角度
               this.angle = Math.random() * Math.PI * 2;
 
-              // 期限が古いほど遅く回転させる（現在からの経過日数をベースに計算）
+              // 経過時間によるベース回転速度の算出
               const now = new Date();
               const diffTimeMs = Math.max(1, now.getTime() - this.deadline.getTime());
               const daysOld = diffTimeMs / (1000 * 60 * 60 * 24);
 
-              // ベース回転速度（古いほど分母が大きくなり低速化）
               this.baseRotationSpeed = Math.max(0.001, 0.012 / (1 + (daysOld / 20)));
               if (Math.random() > 0.5) this.baseRotationSpeed *= -1;
 
@@ -207,7 +207,6 @@
           }
 
           update() {
-              // マウス反発ロジック
               const dx = this.x - mouse.x;
               const dy = this.y - mouse.y;
               const dist = Math.sqrt(dx * dx + dy * dy);
@@ -216,11 +215,9 @@
                   const force = (mouse.radius - dist) / mouse.radius;
                   const repelAngle = Math.atan2(dy, dx);
 
-                  // 反発速度を適用
                   this.vx += Math.cos(repelAngle) * force * 1.8;
                   this.vy += Math.sin(repelAngle) * force * 1.8;
 
-                  // マウスで弾くと一時的に激しくスピン（重要度が小さい軽いかけらほどよく回るように設計）
                   const spinAcceleration = (force * 0.03) / Math.sqrt(this.importance);
                   if (this.baseRotationSpeed > 0) {
                       this.currentRotationSpeed += spinAcceleration;
@@ -228,15 +225,11 @@
                       this.currentRotationSpeed -= spinAcceleration;
                   }
               } else {
-                  // 元の等速直線運動ベクトルに減衰収束
                   this.vx += (this.origVx - this.vx) * 0.04;
                   this.vy += (this.origVy - this.vy) * 0.04;
-
-                  // 回転速度も元のベース速度に減衰
                   this.currentRotationSpeed += (this.baseRotationSpeed - this.currentRotationSpeed) * 0.04;
               }
 
-              // 速度制限
               const maxSpeed = 4.5;
               const currentSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
               if (currentSpeed > maxSpeed) {
@@ -244,12 +237,10 @@
                   this.vy = (this.vy / currentSpeed) * maxSpeed;
               }
 
-              // 位置・角度の更新
               this.x += this.vx;
               this.y += this.vy;
               this.angle += this.currentRotationSpeed;
 
-              // 画面端の跳ね返り
               const boundR = this.radius;
               if (this.x - boundR < 0) {
                   this.x = boundR;
@@ -274,18 +265,14 @@
 
           draw() {
               ctx.save();
-
-              // 原点をかけらの中心へ
               ctx.translate(this.x, this.y);
               ctx.rotate(this.angle);
 
-              // かけらの影
               ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
               ctx.shadowBlur = 15;
               ctx.shadowOffsetX = 3;
               ctx.shadowOffsetY = 5;
 
-              // 多角形（かけら）をパス描画
               ctx.beginPath();
               if (this.vertices.length > 0) {
                   ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
@@ -295,26 +282,23 @@
               }
               ctx.closePath();
 
-              // ガラス調の塗りと輪郭
-              ctx.fillStyle = this.color + "d4"; // 83%の不透明度
+              ctx.fillStyle = this.color + "d4";
               ctx.fill();
 
               ctx.lineWidth = 1.8;
               ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
               ctx.stroke();
 
-              // 影効果をリセットしてテキストを鮮明に描画
               ctx.shadowColor = 'transparent';
               ctx.shadowBlur = 0;
               ctx.shadowOffsetX = 0;
               ctx.shadowOffsetY = 0;
 
-              // テキスト描画（かけらのサイズ＝半径に合わせてフォントサイズを微調整）
               ctx.fillStyle = "#ffffff";
               ctx.textAlign = "center";
               ctx.textBaseline = "middle";
 
-              const fontBase = this.radius * 0.16; // 半径に応じた可変フォントサイズ
+              const fontBase = this.radius * 0.16;
 
               // 1. タスク名
               ctx.font = `bold ${Math.max(10, fontBase)}px sans-serif`;
@@ -328,7 +312,7 @@
               }
               ctx.fillText(displayTitle, 0, -this.radius * 0.22);
 
-              // 中央のセパレータ線
+              // 区切り線
               ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
               ctx.lineWidth = 1;
               ctx.beginPath();
@@ -350,13 +334,11 @@
           }
       }
 
-      // 破片配列の構築（1タスク ＝ 1かけら）
       const fragments = [];
       completedTasks.forEach(task => {
           fragments.push(new Fragment(task));
       });
 
-      // アニメーションループ
       function loop() {
           const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || !document.documentElement.getAttribute('data-theme');
           ctx.fillStyle = isDark ? "#070a13" : "#f1f5f9";
