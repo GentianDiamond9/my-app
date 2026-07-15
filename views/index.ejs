@@ -380,6 +380,22 @@
         </div>
     </div>
 
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-8 pb-12">
+    <div class="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div>
+            <h3 class="text-lg font-bold">データ管理設定</h3>
+            <p class="text-xs text-[var(--text-muted)]">アプリ内のすべてのタスクデータをリセット、またはバックアップとしてエクスポートできます。</p>
+        </div>
+        <div class="flex flex-wrap gap-3 w-full sm:w-auto">
+            <button id="exportJsonBtn" class="flex-1 sm:flex-none px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-xl shadow transition duration-200 flex items-center justify-center gap-2">
+                📦 データをJSONで保存
+            </button>
+            <button id="deleteAllBtn" class="flex-1 sm:flex-none px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium rounded-xl shadow transition duration-200 flex items-center justify-center gap-2">
+                ⚠️ データを全削除
+            </button>
+        </div>
+    </div>
+</div>
     <script>
         let allTasks = <%- JSON.stringify(tasks) %>;
         let currentTargetTaskId = null;
@@ -922,6 +938,51 @@ const now = new Date();
                 const searchInput = document.getElementById('taskSearchInput');
                 renderTreemap(searchInput ? searchInput.value.toLowerCase().trim() : "");
             }, 100);
+        });
+
+        // 📦 データをJSONファイルとして保存（ダウンロード）する処理
+        document.getElementById('exportJsonBtn').addEventListener('click', () => {
+            // サーバーから渡されている現在のタスクデータ（EJSで展開）
+            // もし `tasks` 変数がグローバルにない場合は、以下のように現在定義されているオブジェクトから取得します
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
+            const downloadAnchor = document.createElement('a');
+            
+            // ファイル名に現在の日時を付与
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0];
+            
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `visual_tasks_backup_${dateStr}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        });
+
+        // ⚠️ データをすべて削除する処理
+        document.getElementById('deleteAllBtn').addEventListener('click', async () => {
+            if (!confirm('本当にすべてのタスクデータを完全に削除しますか？\nこの操作は取り消せません。')) {
+                return;
+            }
+            
+            try {
+                // サーバー側の完全リセットAPI（DELETE /tasks）を呼び出す
+                const response = await fetch('/tasks', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    alert('すべてのデータが正常に削除されました。');
+                    window.location.reload(); // 画面をリロードして空にする
+                } else {
+                    alert('データの削除に失敗しました。');
+                }
+            } catch (error) {
+                console.error('Error deleting all tasks:', error);
+                alert('通信エラーが発生しました。');
+            }
         });
     </script>
 </body>
