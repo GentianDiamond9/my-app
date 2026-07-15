@@ -725,15 +725,26 @@
         // E. ⚙️ システム設定・データインポート・エクスポート初期化処理
         function setupSettingsEvents() {
             // 📦 データをJSONファイルとして安全にダウンロード保存
+            // E. ⚙️ システム設定・データインポート・エクスポート初期化処理
+        function setupSettingsEvents() {
+            // 📦 データベースのすべてのデータをそのまま100%完全にJSONファイルとして保存
             const exportJsonBtn = document.getElementById('exportJsonBtn');
             if (exportJsonBtn) {
                 exportJsonBtn.addEventListener('click', () => {
                     try {
-                        const jsonString = JSON.stringify(tasks, null, 2);
+                        // 💡 ポイント: 画面表示用の変数ではなく、EJSがサーバー(DB)から
+                        // 直接受け取ったオリジナルデータをそのまま丸ごとJSON文字列化します。
+                        const allDatabaseTasks = <%- JSON.stringify(tasks) %>;
+                        
+                        // インデント付きの綺麗なJSONフォーマットに整形
+                        const jsonString = JSON.stringify(allDatabaseTasks, null, 2);
+                        
+                        // バイナリBlobオブジェクトを作成 (大容量でも壊れないモダンな方式)
                         const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
                         const url = URL.createObjectURL(blob);
                         const downloadAnchor = document.createElement('a');
                         
+                        // ファイル名に今日の日付を付与
                         const now = new Date();
                         const year = now.getFullYear();
                         const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -741,8 +752,9 @@
                         const dateStr = `${year}-${month}-${day}`;
                         
                         downloadAnchor.href = url;
-                        downloadAnchor.download = `visual_tasks_backup_${dateStr}.json`;
+                        downloadAnchor.download = `visual_tasks_all_database_backup_${dateStr}.json`;
                         
+                        // ダウンロードを発火させてクリーンアップ
                         document.body.appendChild(downloadAnchor);
                         downloadAnchor.click();
                         
@@ -754,6 +766,79 @@
                     }
                 });
             }
+
+            // ⚠️ データをすべて削除する処理 (既存の通り)
+            const deleteAllBtn = document.getElementById('deleteAllBtn');
+            if (deleteAllBtn) {
+                deleteAllBtn.addEventListener('click', async () => {
+                    if (!confirm('本当にすべてのタスクデータを完全に削除しますか？\nこの操作は取り消せません。')) {
+                        return;
+                    }
+                    try {
+                        const response = await fetch('/tasks', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        if (response.ok) {
+                            alert('すべてのデータが正常に削除されました。');
+                            window.location.reload();
+                        } else {
+                            alert('データの削除に失敗しました。');
+                        }
+                    } catch (error) {
+                        console.error('Error deleting all tasks:', error);
+                        alert('通信エラーが発生しました。');
+                    }
+                });
+            }
+
+            // 📥 インポート処理 (既存の通り)
+            const importJsonBtn = document.getElementById('importJsonBtn');
+            const importJsonInput = document.getElementById('importJsonInput');
+            if (importJsonBtn && importJsonInput) {
+                importJsonBtn.addEventListener('click', () => {
+                    importJsonInput.click();
+                });
+                importJsonInput.addEventListener('change', (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const importedData = JSON.parse(e.target.result);
+                            if (!Array.isArray(importedData)) {
+                                alert('無効なバックアップフォーマットです。');
+                                return;
+                            }
+                            const mode = confirm(
+                                `タスクデータが ${importedData.length} 件見つかりました。\n\n` +
+                                `【OK】を押すと、現在のデータをすべて消去して「上書きインポート」します。\n` +
+                                `【キャンセル】を押すと、現在のデータに残したまま「追加（統合）インポート」します。`
+                            ) ? 'overwrite' : 'append';
+
+                            const response = await fetch('/tasks/import', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ mode: mode, tasks: importedData })
+                            });
+
+                            if (response.ok) {
+                                alert('データのインポートが完了しました！');
+                                window.location.reload();
+                            } else {
+                                const errorMsg = await response.text();
+                                alert(`インポートに失敗しました: ${errorMsg}`);
+                            }
+                        } catch (error) {
+                            alert('ファイルの解析に失敗しました。');
+                        } finally {
+                            importJsonInput.value = '';
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+            }
+        }
 
             // ⚠️ データをすべて削除する処理
             const deleteAllBtn = document.getElementById('deleteAllBtn');
