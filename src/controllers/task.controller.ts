@@ -32,127 +32,104 @@ export class TaskController {
       res.render("index", { tasks, stats });
     } catch (error) {
       console.error("一覧取得エラー:", error);
-      res.status(500).send("Error");
+      res.status(500).send("Internal Server Error");
     }
   }
 
-  // 2. 新規作成
+  // 2. タスクの新規作成
   async create(req: Request, res: Response): Promise<void> {
     try {
       const { title, deadline, importance, tag, color } = req.body;
 
-      if (!title || !deadline || importance === undefined) {
-        res.status(400).json({ message: "Missing required fields" });
-        return;
-      }
+      // 送信された日時文字列をそのままDateオブジェクトへパース
+      const parsedDeadline = deadline ? parseDate(deadline) : new Date();
 
-      // 💡 クライアントからの "YYYY-MM-DDTHH:mm" 形式を、
-      // タイムゾーンが混ざらないようにローカル時刻として解釈して保存します
       await taskService.createTask({
         title,
-        deadline: new Date(deadline),
+        deadline: parsedDeadline,
         importance: Number(importance),
-        tag: tag || null,
-        color: color || null,
+        tag,
+        color,
       });
 
       res.redirect("/");
     } catch (error) {
-      res.status(500).json({ message: "Internal Server Error", error });
+      console.error("作成エラー:", error);
+      res.status(500).send("Internal Server Error");
     }
   }
 
-  // 3. 更新
+  // 3. タスクの更新（完了フラグの切り替え等）
   async update(req: Request, res: Response): Promise<void> {
     try {
-      const id = parseInt(req.params.id, 10);
-      const { deadline, ...rest } = req.body;
+      const { id } = req.params;
+      const { is_completed } = req.body;
 
-      const updateData: any = { ...rest };
-      if (deadline) updateData.deadline = new Date(deadline);
-      if (rest.is_completed) updateData.completed_at = new Date();
+      // 文字列や真偽値が混在しても確実に boolean に変換
+      const isCompletedBool = is_completed === true || is_completed === "true";
 
-      const updatedTask = await taskService.updateTask(id, updateData);
-      res.status(200).json(updatedTask);
+      await taskService.updateTask(Number(id), {
+        is_completed: isCompletedBool,
+      });
+      res.sendStatus(200);
     } catch (error) {
-      res.status(500).json({ message: "Error updating task", error });
+      console.error("更新エラー:", error);
+      res.status(500).send("Internal Server Error");
     }
   }
 
-  // 4. DELETE /tasks/:id
+  // 4. タスクの削除
   async delete(req: Request, res: Response): Promise<void> {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id)) {
-        res.status(400).json({ message: "Invalid ID format" });
-        return;
-      }
-
-      await taskService.deleteTask(id);
-      res.status(200).json({ message: "Task successfully deleted" });
+      const { id } = req.params;
+      await taskService.deleteTask(Number(id));
+      res.sendStatus(200);
     } catch (error) {
       console.error("削除エラー:", error);
-      res.status(500).json({ message: "Error deleting task", error });
+      res.status(500).send("Internal Server Error");
     }
   }
 
-  // 5. DELETE /tasks (完全リセット用の一括削除メソッド)
+  // 5. メモの取得
+  async getMemos(req: Request, res: Response): Promise<void> {
+    try {
+      const { taskId } = req.params;
+      const memo = await taskService.getMemo(Number(taskId));
+      res.json(memo || { content: "" });
+    } catch (error) {
+      res.status(500).send("Error fetching memo");
+    }
+  }
+
+  // 6. メモの保存
+  async saveMemo(req: Request, res: Response): Promise<void> {
+    try {
+      const { taskId } = req.params;
+      const { content } = req.body;
+      await taskService.saveMemo(Number(taskId), content);
+      res.sendStatus(200);
+    } catch (error) {
+      res.status(500).send("Error saving memo");
+    }
+  }
+
+  // 7. 全削除機能
   async deleteAll(req: Request, res: Response): Promise<void> {
     try {
       await taskService.deleteAllTasks();
-      res.status(200).json({ message: "All tasks successfully deleted" });
+      res.sendStatus(200);
     } catch (error) {
-      console.error("一括削除エラー:", error);
-      res.status(500).json({ message: "Error resetting tasks", error });
+      res.status(500).send("Error deleting all tasks");
     }
   }
 
-  // GET /tasks/:taskId/memos
-  async getMemos(req: Request, res: Response): Promise<void> {
-    try {
-      const taskId = parseInt(req.params.taskId, 10);
-      if (isNaN(taskId)) {
-        res.status(400).json({ message: "Invalid Task ID format" });
-        return;
-      }
-
-      const memos = await taskService.getMemosByTaskId(taskId);
-      res.status(200).json(memos);
-    } catch (error) {
-      console.error("メモ取得エラー:", error);
-      res.status(500).json({ message: "Error retrieving memos", error });
-    }
-  }
-
-  // POST /tasks/:taskId/memos
-  async saveMemo(req: Request, res: Response): Promise<void> {
-    try {
-      const taskId = parseInt(req.params.taskId, 10);
-      const { content } = req.body;
-
-      if (isNaN(taskId)) {
-        res.status(400).json({ message: "Invalid Task ID format" });
-        return;
-      }
-
-      if (content === undefined) {
-        res.status(400).json({ message: "Content is required" });
-        return;
-      }
-
-      const memo = await taskService.saveMemo(taskId, content);
-      res.status(200).json(memo);
-    } catch (error) {
-      console.error("メモ保存エラー:", error);
-      res.status(500).json({ message: "Error saving memo", error });
-    }
-  }
-
-  // 6. 過去の履歴取得
+  // 8. 過去の歴史画面のレンダリング
   async history(req: Request, res: Response): Promise<void> {
     try {
-      const rawTasks = await taskService.getAllTasks();
-      const completedTasks = rawTasks
+      const allTasks = await taskService.getAllTasks();
+
+      // 完了済みタスクのみをフィルタリング
+      const completedTasks = allTasks
         .filter((t) => t.is_completed)
         .map((t) => ({ ...t, deadline: parseDate(t.deadline) }));
 
@@ -161,6 +138,8 @@ export class TaskController {
       res.status(500).send("Error rendering history page");
     }
   }
+
+  // 9. JSONデータインポート機能（上書き・追加対応）
   async importTasks(req: Request, res: Response): Promise<void> {
     try {
       const { mode, tasks } = req.body;
@@ -170,32 +149,54 @@ export class TaskController {
         return;
       }
 
-      // --- 💡 「上書き」モードの場合は、現在のデータをまず全削除する ---
+      // 💡 「上書き」モードの場合は、現在のデータをすべてクリアする
       if (mode === "overwrite") {
-        // 例: 全件削除処理 (ServiceやRepositoryの既存のdeleteAllなどを呼び出す)
-        // await this.taskService.deleteAllTasks();
+        await taskService.deleteAllTasks();
       }
 
-      // --- 💡 各タスクデータをデータベース/ストレージへ保存する ---
-      // ※各タスクがIDの衝突を起こさないよう、追加(append)の場合はIDを新しく生成し直したり、
-      // 必要なデータバリデーション（titleやdeadlineがあるか等）を通すと安全です。
+      // 各タスクデータを安全にバリデーション・整形してストレージへ保存
       for (const taskData of tasks) {
-        // プロジェクトのデータモデル構成に合わせて安全に整形して追加
-        await this.taskService.create({
+        // バックアップ元データの完了フラグ形式が異なっていても安全にマッピング
+        const isCompleted =
+          taskData.is_completed !== undefined
+            ? !!taskData.is_completed
+            : !!taskData.isCompleted;
+
+        // 日付の妥当性チェック
+        let deadlineDate = new Date();
+        if (taskData.deadline) {
+          const parsed = parseDate(taskData.deadline);
+          if (!isNaN(parsed.getTime())) {
+            deadlineDate = parsed;
+          }
+        }
+
+        let completedAtDate: Date | undefined = undefined;
+        if (taskData.completed_at) {
+          const parsedComp = parseDate(taskData.completed_at);
+          if (!isNaN(parsedComp.getTime())) {
+            completedAtDate = parsedComp;
+          }
+        }
+
+        // タスクを新規に登録
+        await taskService.createTask({
           title: taskData.title || "無題のインポートタスク",
           tag: taskData.tag || "",
-          deadline: taskData.deadline
-            ? new Date(taskData.deadline)
-            : new Date(),
+          deadline: deadlineDate,
           importance: Number(taskData.importance) || 1,
-          color: taskData.color || "#6366f1",
-          isCompleted: !!taskData.isCompleted, // 歴史データや完了状態の維持
+          color: taskData.color || "#64748b",
+          is_completed: isCompleted,
+          completed_at: completedAtDate,
         });
       }
 
       res.status(200).send("インポート成功");
     } catch (error) {
-      console.error("Error importing tasks:", error);
+      console.error(
+        "❌ インポート処理中にサーバーエラーが発生しました:",
+        error,
+      );
       res.status(500).send("サーバー内部エラーでインポートに失敗しました。");
     }
   }
