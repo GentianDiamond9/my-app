@@ -158,175 +158,194 @@
        }
 
       // 破片 (Fragment) クラス
-       class Fragment {
-           constructor(task) {
-               this.title = task.title;
-               this.tag = task.tag || "なし";
-               this.deadline = new Date(task.deadline);
-               this.deadlineStr = this.deadline.toLocaleDateString();
-               this.color = task.color || "#6366f1";
-               this.importance = Number(task.importance) || 1; // 1, 2, 3 のいずれか
+      class Fragment {
+          constructor(task) {
+              this.title = task.title;
+              this.tag = task.tag || "なし";
+              this.deadline = new Date(task.deadline);
+              this.deadlineStr = formatToJST(task.deadline); // より正確なJST日付表示
+              this.color = task.color || "#6366f1";
+              this.importance = Number(task.importance) || 1; // 1, 2, 3 のいずれか
 
-               // 初期配置は画面全体にランダム
-               this.x = Math.random() * (width - 300) + 150;
-               this.y = Math.random() * (height - 300) + 150;
+              // 初期配置
+              this.x = Math.random() * (width - 300) + 150;
+              this.y = Math.random() * (height - 300) + 150;
 
-               // 📐 【重要度の面積比例システム】
-               const baseRadius = 60;
-               const scaleFactor = Math.sqrt(this.importance);
-               this.radius = baseRadius * scaleFactor;
+              // 【重要度の面積比例システム】
+              const baseRadius = 60;
+              const scaleFactor = Math.sqrt(this.importance);
+              this.radius = baseRadius * scaleFactor;
 
-               // 横幅と縦幅
-               this.sizeW = this.radius * 2 * 1.1;
-               this.sizeH = this.radius * 2 * 0.85;
+              // 📐 「砕け散ったかけら」のデザインを事前生成
+              // 毎フレーム乱数を作ったり計算するのを防ぎ、配列にキャッシュします
+              this.points = [];
+              const numPoints = 5 + Math.floor(Math.random() * 4); // 5〜8角形
+              for (let i = 0; i < numPoints; i++) {
+                  const angle = (i / numPoints) * Math.PI * 2;
+                  // 半径を少しランダムに伸縮させ、トゲトゲした「砕け散ったかけら」を表現
+                  const offsetRadius = this.radius * (0.8 + Math.random() * 0.4);
+                  this.points.push({
+                      x: Math.cos(angle) * offsetRadius,
+                      y: Math.sin(angle) * offsetRadius
+                  });
+              }
 
-               // 速度
-               const moveAngle = Math.random() * Math.PI * 2;
-               const speed = 0.3 + Math.random() * 0.5;
-               this.vx = Math.cos(moveAngle) * speed;
-               this.vy = Math.sin(moveAngle) * speed;
-               this.origVx = this.vx;
-               this.origVy = this.vy;
+              // 速度
+              const moveAngle = Math.random() * Math.PI * 2;
+              const speed = 0.3 + Math.random() * 0.5;
+              this.vx = Math.cos(moveAngle) * speed;
+              this.vy = Math.sin(moveAngle) * speed;
+              this.origVx = this.vx;
+              this.origVy = this.vy;
 
-               // 回転角度
-               this.angle = Math.random() * Math.PI * 2;
-               // 経過時間によるベース回転速度の算出
-               const now = new Date();
-               const diffTimeMs = Math.max(1, now.getTime() - this.deadline.getTime());
-               const daysOld = diffTimeMs / (1000 * 60 * 60 * 24);
-               this.baseRotationSpeed = Math.max(0.001, 0.012 / (1 + (daysOld / 20)));
-               if (Math.random() > 0.5) this.baseRotationSpeed *= -1;
+              // 回転角度
+              this.angle = Math.random() * Math.PI * 2;
+              const now = new Date();
+              const diffTimeMs = Math.max(1, now.getTime() - this.deadline.getTime());
+              const daysOld = diffTimeMs / (1000 * 60 * 60 * 24);
+              this.baseRotationSpeed = Math.max(0.001, 0.012 / (1 + (daysOld / 20)));
+              if (Math.random() > 0.5) this.baseRotationSpeed *= -1;
 
-               this.currentRotationSpeed = this.baseRotationSpeed;
-           }
+              this.currentRotationSpeed = this.baseRotationSpeed;
+          }
 
-           // ⚡ [軽量化] 三角関数を一切使わない単純な反発ベクトル計算
-           update() {
-               const dx = this.x - mouse.x;
-               const dy = this.y - mouse.y;
-               // 二乗距離で判定（高速化のためにMath.sqrtの回数を減らす）
-               const distSq = dx * dx + dy * dy;
-               const mouseRadiusSq = mouse.radius * mouse.radius;
+          // ⚡ [最適化] マウス反発の単純ベクトル計算
+          update() {
+              const dx = this.x - mouse.x;
+              const dy = this.y - mouse.y;
+              const distSq = dx * dx + dy * dy;
+              const mouseRadiusSq = mouse.radius * mouse.radius;
 
-               if (distSq < mouseRadiusSq) {
-                   const dist = Math.sqrt(distSq) || 1;
-                   const force = (mouse.radius - dist) / mouse.radius;
+              if (distSq < mouseRadiusSq) {
+                  const dist = Math.sqrt(distSq) || 1;
+                  const force = (mouse.radius - dist) / mouse.radius;
 
-                   // 三角関数 (atan2, cos, sin) を使わずに、差分ベクトルを正規化して反発させる
-                   const dirX = dx / dist;
-                   const dirY = dy / dist;
+                  const dirX = dx / dist;
+                  const dirY = dy / dist;
 
-                   this.vx += dirX * force * 1.8;
-                   this.vy += dirY * force * 1.8;
+                  this.vx += dirX * force * 1.8;
+                  this.vy += dirY * force * 1.8;
 
-                   const spinAcceleration = (force * 0.03) / Math.sqrt(this.importance);
-                   if (this.baseRotationSpeed > 0) {
-                       this.currentRotationSpeed += spinAcceleration;
-                   } else {
-                       this.currentRotationSpeed -= spinAcceleration;
-                   }
-               } else {
-                   this.vx += (this.origVx - this.vx) * 0.04;
-                   this.vy += (this.origVy - this.vy) * 0.04;
-                   this.currentRotationSpeed += (this.baseRotationSpeed - this.currentRotationSpeed) * 0.04;
-               }
+                  const spinAcceleration = (force * 0.03) / Math.sqrt(this.importance);
+                  if (this.baseRotationSpeed > 0) {
+                      this.currentRotationSpeed += spinAcceleration;
+                  } else {
+                      this.currentRotationSpeed -= spinAcceleration;
+                  }
+              } else {
+                  this.vx += (this.origVx - this.vx) * 0.04;
+                  this.vy += (this.origVy - this.vy) * 0.04;
+                  this.currentRotationSpeed += (this.baseRotationSpeed - this.currentRotationSpeed) * 0.04;
+              }
 
-               const maxSpeed = 4.5;
-               const currentSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-               if (currentSpeed > maxSpeed) {
-                   this.vx = (this.vx / currentSpeed) * maxSpeed;
-                   this.vy = (this.vy / currentSpeed) * maxSpeed;
-               }
+              const maxSpeed = 4.5;
+              const currentSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+              if (currentSpeed > maxSpeed) {
+                  this.vx = (this.vx / currentSpeed) * maxSpeed;
+                  this.vy = (this.vy / currentSpeed) * maxSpeed;
+              }
 
-               this.x += this.vx;
-               this.y += this.vy;
-               this.angle += this.currentRotationSpeed;
+              this.x += this.vx;
+              this.y += this.vy;
+              this.angle += this.currentRotationSpeed;
 
-               const boundR = this.radius;
-               if (this.x - boundR < 0) {
-                   this.x = boundR;
-                   this.vx *= -1;
-                   this.origVx *= -1;
-               } else if (this.x + boundR > width) {
-                   this.x = width - boundR;
-                   this.vx *= -1;
-                   this.origVx *= -1;
-               }
+              // 画面端の跳ね返り
+              const boundR = this.radius;
+              if (this.x - boundR < 0) {
+                  this.x = boundR;
+                  this.vx *= -1;
+                  this.origVx *= -1;
+              } else if (this.x + boundR > width) {
+                  this.x = width - boundR;
+                  this.vx *= -1;
+                  this.origVx *= -1;
+              }
 
-               if (this.y - boundR < 0) {
-                   this.y = boundR;
-                   this.vy *= -1;
-                   this.origVy *= -1;
-               } else if (this.y + boundR > height) {
-                   this.y = height - boundR;
-                   this.vy *= -1;
-                   this.origVy *= -1;
-               }
-           }
+              if (this.y - boundR < 0) {
+                  this.y = boundR;
+                  this.vy *= -1;
+                  this.origVy *= -1;
+              } else if (this.y + boundR > height) {
+                  this.y = height - boundR;
+                  this.vy *= -1;
+                  this.origVy *= -1;
+              }
+          }
 
-           // ⚡ [軽量化] 重い shadowBlur（ドロップシャドウ）を廃止し、
-           // 頂点ループを排除したシンプルな角丸四角形（あるいは楕円）描画に変更
-           draw() {
-               ctx.save();
-               ctx.translate(this.x, this.y);
-               ctx.rotate(this.angle);
+          draw() {
+              // ⚡ [超軽量化] 画面の外（見えない領域）にいるかけらは描画処理を完全にスキップ
+              const margin = this.radius * 1.5;
+              if (this.x + margin < 0 || this.x - margin > width || this.y + margin < 0 || this.y - margin > height) {
+                  return;
+              }
 
-               // 影をブラウザ内蔵の重い shadowBlur ではなく、
-               // 描画位置を少しずらした半透明ブラックの図形を先に1回だけ敷く「擬似シャドウ」で超高速化
-               ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-               ctx.beginPath();
-               ctx.roundRect(-this.sizeW / 2 + 4, -this.sizeH / 2 + 4, this.sizeW, this.sizeH, 12);
-               ctx.fill();
+              ctx.save();
+              ctx.translate(this.x, this.y);
+              ctx.rotate(this.angle);
 
-               // 本体描画 (多角形生成ループを廃止して標準の角丸四角形に)
-               ctx.beginPath();
-               ctx.roundRect(-this.sizeW / 2, -this.sizeH / 2, this.sizeW, this.sizeH, 12);
-               ctx.fillStyle = this.color + "d4"; // 若干不透明な色
-               ctx.fill();
+              // 1. 擬似シャドウ（事前計算済みの頂点配列を使用）
+              ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+              ctx.beginPath();
+              ctx.moveTo(this.points[0].x + 4, this.points[0].y + 4);
+              for (let i = 1; i < this.points.length; i++) {
+                  ctx.lineTo(this.points[i].x + 4, this.points[i].y + 4);
+              }
+              ctx.closePath();
+              ctx.fill();
 
-               ctx.lineWidth = 1.8;
-               ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
-               ctx.stroke();
+              // 2. 砕けたかけら本体の描画（事前計算済みの頂点配列を再利用）
+              ctx.beginPath();
+              ctx.moveTo(this.points[0].x, this.points[0].y);
+              for (let i = 1; i < this.points.length; i++) {
+                  ctx.lineTo(this.points[i].x, this.points[i].y);
+              }
+              ctx.closePath();
+              ctx.fillStyle = this.color + "d4"; // 透明度を含めたカラー
+              ctx.fill();
 
-               // テキスト関係の描画
-               ctx.fillStyle = "#ffffff";
-               ctx.textAlign = "center";
-               ctx.textBaseline = "middle";
-               const fontBase = this.radius * 0.16;
+              ctx.lineWidth = 1.8;
+              ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+              ctx.stroke();
 
-               // 1. タスク名
-               ctx.font = `bold ${Math.max(10, fontBase)}px sans-serif`;
-               let displayTitle = this.title;
-               const maxW = this.sizeW * 0.75;
-               if (ctx.measureText(displayTitle).width > maxW) {
-                   while (ctx.measureText(displayTitle + "...").width > maxW && displayTitle.length > 0) {
-                       displayTitle = displayTitle.slice(0, -1);
-                   }
-                   displayTitle += "...";
-               }
-               ctx.fillText(displayTitle, 0, -this.radius * 0.22);
+              // 3. テキストの描画
+              ctx.fillStyle = "#ffffff";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              const fontBase = this.radius * 0.16;
 
-               // 区切り線
-               ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-               ctx.lineWidth = 1;
-               ctx.beginPath();
-               ctx.moveTo(-this.sizeW * 0.35, -this.radius * 0.05);
-               ctx.lineTo(this.sizeW * 0.35, -this.radius * 0.05);
-               ctx.stroke();
+              // タスク名
+              ctx.font = `bold ${Math.max(10, fontBase)}px sans-serif`;
+              let displayTitle = this.title;
+              const maxW = this.radius * 1.5;
+              if (ctx.measureText(displayTitle).width > maxW) {
+                  while (ctx.measureText(displayTitle + "...").width > maxW && displayTitle.length > 0) {
+                      displayTitle = displayTitle.slice(0, -1);
+                  }
+                  displayTitle += "...";
+              }
+              ctx.fillText(displayTitle, 0, -this.radius * 0.22);
 
-               // 2. タグ
-               ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
-               ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-               ctx.fillText(`🏷️: ${this.tag}`, 0, this.radius * 0.12);
+              // 破片を縦断するシャープなクラック（亀裂線）
+              ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(-this.radius * 0.6, -this.radius * 0.05);
+              ctx.lineTo(this.radius * 0.6, -this.radius * 0.05);
+              ctx.stroke();
 
-               // 3. 期限
-               ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
-               ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-               ctx.fillText(`📅: ${this.deadlineStr}`, 0, this.radius * 0.32);
+              // タグ
+              ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
+              ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+              ctx.fillText(`🏷️: ${this.tag}`, 0, this.radius * 0.12);
 
-               ctx.restore();
-           }
-       }
+              // 期限
+              ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
+              ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+              ctx.fillText(`📅: ${this.deadlineStr}`, 0, this.radius * 0.32);
+
+              ctx.restore();
+          }
+      }
 
        const fragments = [];
        completedTasks.forEach(task => {
