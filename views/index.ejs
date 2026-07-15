@@ -404,18 +404,24 @@
         let currentTargetTaskId = null;
         let currentTargetTaskTitle = "";
 
-        // 🔥 【日本時間(JST)への完全時差補正フォーマット処理】
-        function formatToJST(dateString) {
-            if (!dateString) return "-";
-            const d = new Date(dateString);
-            // 日本時間（UTC+9）に補正して綺麗にフォーマット
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            const hours = String(d.getHours()).padStart(2, '0');
-            const minutes = String(d.getMinutes()).padStart(2, '0');
-            return `${year}/${month}/${day} ${hours}:${minutes}`;
-        }
+function formatToJST(dateString) {
+    if (!dateString) return "-";
+    const d = new Date(dateString);
+    
+    // Intl.DateTimeFormat を使い、OSやサーバー環境を問わず強制的に日本時間にパース
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+        timeZone: 'Asia/Tokyo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+    
+    // 「YYYY/MM/DD, HH:mm」といったフォーマットからカンマを除去して整形
+    return formatter.format(d).replace(',', '');
+}
 
         // 🔥 【登録時の時刻調整】ブラウザローカル基準の時間をそのままJSTとして送信
         function adjustSubmitTime(form) {
