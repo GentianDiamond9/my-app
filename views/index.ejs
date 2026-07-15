@@ -412,13 +412,13 @@
         </div>
     </div>
 
-    <script>
+<script>
+        // 1. サーバーから渡されたタスクデータをフロントエンドの変数に確実に代入
         let allTasks = <%- JSON.stringify(tasks) %>;
 
         // 初期ロード処理
         window.addEventListener('load', () => {
             const now = new Date();
-            // 分単位で初期化するために分数を繰り上げ
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('defaultDeadline').value = now.toISOString().slice(0, 16);
             
@@ -471,7 +471,6 @@
             const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-            // 1週間以内・1ヶ月以内に「完了時刻」または「期限」があったタスクをフィルタリング
             const weekTasks = allTasks.filter(t => {
                 const date = t.completed_at ? new Date(t.completed_at) : new Date(t.deadline);
                 return date >= oneWeekAgo;
@@ -485,7 +484,6 @@
             const getRate = (taskList) => {
                 const completed = taskList.filter(t => t.is_completed);
                 if (completed.length === 0) return 0;
-                // 期限内（完了日付 ≦ 期限日付）に達成できたタスク
                 const inTimeTasks = completed.filter(t => {
                     if (!t.completed_at) return false;
                     return new Date(t.completed_at) <= new Date(t.deadline);
@@ -496,22 +494,27 @@
             const weekRate = getRate(weekTasks);
             const monthRate = getRate(monthTasks);
 
-            // UI反映
             document.getElementById('weekRateVal').innerText = `${weekRate}%`;
             document.getElementById('weekRateBar').style.width = `${weekRate}%`;
             document.getElementById('monthRateVal').innerText = `${monthRate}%`;
             document.getElementById('monthRateBar').style.width = `${monthRate}%`;
         }
 
-        // D. イベント一括処理
+        // D. イベントリスナー（デリゲーションの確実なキャッチ）
         document.getElementById('taskList').addEventListener('click', async (e) => {
-            if (e.target.classList.contains('toggle-btn')) {
-                const id = Number(e.target.getAttribute('data-id'));
-                const targetStatus = e.target.getAttribute('data-status') === 'true';
-                await toggleTaskStatus(id, targetStatus, e);
+            // クリックされた要素自体、またはその親要素がターゲットクラスを持っているか判定
+            const toggleBtn = e.target.closest('.toggle-btn');
+            const deleteBtn = e.target.closest('.delete-btn');
+
+            if (toggleBtn) {
+                const id = Number(toggleBtn.getAttribute('data-id'));
+                // `data-status` が文字列で入ってくるため、正確に真偽値へ変換
+                const targetStatus = toggleBtn.getAttribute('data-status') === 'true';
+                await toggleTaskStatus(id, targetStatus, toggleBtn);
             }
-            if (e.target.classList.contains('delete-btn')) {
-                const id = Number(e.target.getAttribute('data-id'));
+            
+            if (deleteBtn) {
+                const id = Number(deleteBtn.getAttribute('data-id'));
                 await deleteTask(id);
             }
         });
@@ -519,7 +522,7 @@
         // 🎇 進化版フィジカル粒子スパーク演出
         function triggerAdvancedSparkles(x, y, baseColor) {
             const particleCount = 45;
-            const colors = [baseColor, '#ffffff', '#ffd700']; // ゴールド、ホワイト、個別色をブレンド
+            const colors = [baseColor, '#ffffff', '#ffd700'];
             
             for (let i = 0; i < particleCount; i++) {
                 const p = document.createElement('div');
@@ -530,7 +533,6 @@
                 p.style.height = `${size}px`;
                 p.style.background = colors[Math.floor(Math.random() * colors.length)];
                 
-                // 初速と角度
                 const angle = Math.random() * Math.PI * 2;
                 const speed = Math.random() * 8 + 3;
                 let vx = Math.cos(angle) * speed;
@@ -543,17 +545,17 @@
                 let posX = x;
                 let posY = y;
                 let opacity = 1;
-                const gravity = 0.22; // 下方向への重力
+                const gravity = 0.22;
 
                 const animate = () => {
                     if (opacity <= 0.02) {
                         p.remove();
                         return;
                     }
-                    vy += gravity; // 重力加速度の適用
+                    vy += gravity;
                     posX += vx;
                     posY += vy;
-                    opacity -= 0.015; // 徐々にフェードアウト
+                    opacity -= 0.015;
 
                     p.style.left = `${posX}px`;
                     p.style.top = `${posY}px`;
@@ -566,8 +568,9 @@
             }
         }
 
-        async function toggleTaskStatus(id, targetStatus, event) {
+        async function toggleTaskStatus(id, targetStatus, buttonElement) {
             try {
+                // バックエンドへAPI通信
                 const response = await fetch(`/tasks/${id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -577,24 +580,24 @@
                 if (response.ok) {
                     const resData = await response.json();
                     
-                    // タスクが完了し、かつ重要度が2(中)以上の場合にスパークをトリガー
+                    // 1. スパーク演出のトリガー（完了時かつ重要度2以上）
                     if (targetStatus === true) {
                         const originalTask = allTasks.find(t => t.id === id);
                         if (originalTask && originalTask.importance >= 2) {
-                            const rect = event.target.getBoundingClientRect();
-                            const nodeColor = originalTask.color && originalTask.color !== '#64748b' ? originalTask.color : 'var(--default-node-color)';
-                            triggerAdvancedSparkles(rect.left + window.scrollX, rect.top + window.scrollY, nodeColor);
+                            const rect = buttonElement.getBoundingClientRect();
+                            const nodeColor = originalTask.color && originalTask.color !== '#64748b' ? originalTask.color : '#64748b';
+                            triggerAdvancedSparkles(rect.left + window.scrollX + rect.width / 2, rect.top + window.scrollY + rect.height / 2, nodeColor);
                         }
                     }
 
-                    // フロントエンド内のメモリ状態を同期
+                    // 2. フロントエンドのメモリデータを更新
                     allTasks = allTasks.map(t => t.id === id ? { 
                         ...t, 
                         is_completed: targetStatus,
                         completed_at: resData.completed_at 
                     } : t);
 
-                    // DOM要素書き換え
+                    // 3. HTML側のDOM要素を即座に書き換え
                     const titleEl = document.getElementById(`title-${id}`);
                     const actionsContainer = document.getElementById(`actions-${id}`);
                     
@@ -612,46 +615,51 @@
                         `;
                     }
 
+                    // 4. マップ、達成率、履歴のトリプル再描画
                     buildTagHistory();
                     calculateRates();
                     renderTreemap();
                 }
             } catch (err) {
-                console.error(err);
+                console.error("ステータス更新エラー:", err);
             }
         }
 
         async function deleteTask(id) {
-            if (!confirm("削除しますか？")) return;
+            if (!confirm("本当に削除しますか？")) return;
             try {
                 const response = await fetch(`/tasks/${id}`, { method: 'DELETE' });
                 if (response.ok) {
-                    document.getElementById(`task-${id}`).remove();
+                    // 1. メモリデータの更新
                     allTasks = allTasks.filter(t => t.id !== id);
+                    
+                    // 2. DOMから要素を削除
+                    const taskItem = document.getElementById(`task-${id}`);
+                    if (taskItem) taskItem.remove();
+
+                    // 3. 再描画
+                    buildTagHistory();
                     calculateRates();
                     renderTreemap();
                 }
             } catch (err) {
-                console.error(err);
+                console.error("削除エラー:", err);
             }
         }
 
-        // 📈 E. プロ仕様 Squarified Treemap（正方形に近い四角形に切り分けるアルゴリズム）
+        // 📈 E. プロ仕様 Squarified Treemap アルゴリズム
         function squarify(nodes, containerWidth, containerHeight) {
             const result = [];
             if (nodes.length === 0) return result;
 
-            // 面積（ウェイト値）の総和
             const totalWeight = nodes.reduce((sum, n) => sum + n.weight, 0);
             const totalArea = containerWidth * containerHeight;
 
-            // 各タスクにピクセル基準の実面積（面積比率）を割り振る
             const mappedNodes = nodes.map(n => ({
                 ...n,
                 area: (n.weight / totalWeight) * totalArea
             })).sort((a, b) => b.area - a.area);
 
-            // アスペクト比を最適化するためのSquarify補助ロジック
             function layoutRow(row, width, vertical, x, y) {
                 const sumArea = row.reduce((s, n) => s + n.area, 0);
                 const height = sumArea / width;
@@ -738,7 +746,6 @@
             const now = new Date();
             const labels = {3: '高', 2: '中', 1: '低'};
 
-            // 期限超過タスクのウェイトを、超過時間に比例して拡大する計算ロジック
             const scoredTasks = activeTasks.map(task => {
                 const deadline = new Date(task.deadline);
                 const diffTime = deadline.getTime() - now.getTime();
@@ -746,16 +753,11 @@
                 let weight = 0;
                 
                 if (diffTime < 0) {
-                    // 【期限超過時】
-                    // 1日 ＝ 86400000 ミリ秒
                     const overdueMs = Math.abs(diffTime);
                     const overdueDaysFraction = overdueMs / (1000 * 60 * 60 * 24);
-                    // 期限ぴったりで1倍、1日超過で2倍、2日超過で3倍になる比例数式
                     const penaltyFactor = 1 + overdueDaysFraction;
                     weight = Math.pow(task.importance, 2) * penaltyFactor;
                 } else {
-                    // 【期限内】
-                    // 残り時間を分数基準に変換し、安全率（0.5日以下を0.5とする）を適用
                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                     const daysDivisor = diffDays <= 0 ? 0.5 : diffDays;
                     weight = Math.pow(task.importance, 2) / daysDivisor;
@@ -767,18 +769,16 @@
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
 
-            // プロ仕様正方形分割のレイアウト配列を生成
             const layoutedNodes = squarify(scoredTasks, containerWidth, containerHeight);
 
             layoutedNodes.forEach(layout => {
                 const node = document.createElement('div');
                 node.className = 'treemap-node';
                 
-                // 色が明示的に設定されていればその色、なければデフォルトの灰色
                 if (layout.color && layout.color !== '#64748b') {
                     node.style.backgroundColor = layout.color;
                 } else {
-                    node.style.backgroundColor = 'var(--default-node-color)';
+                    node.style.backgroundColor = 'var(--default-node)';
                 }
 
                 node.style.left = `${layout.x}px`;
@@ -786,7 +786,6 @@
                 node.style.width = `${layout.w}px`;
                 node.style.height = `${layout.h}px`;
 
-                // 面積による動的な文字スケーリング
                 const area = layout.w * layout.h;
                 let fontSize = 0.8;
                 if (area > 40000) fontSize = 1.25;
@@ -811,7 +810,6 @@
                     <div class="node-size" style="font-size: ${fontSize * 0.8}rem;">${timeStatusText}</div>
                 `;
 
-                // 詳細オーバーレイ（ホバー）
                 node.addEventListener('mouseenter', () => {
                     overlay.innerHTML = `
                         <strong>🗂 タスク名:</strong> ${layout.title}<br>
@@ -832,7 +830,6 @@
             });
         }
 
-        // リサイズ時の再計算をデバウンスなしで追従
         window.onresize = renderTreemap;
     </script>
 </body>
