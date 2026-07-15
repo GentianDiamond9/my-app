@@ -110,4 +110,15 @@ export class TaskController {
       res.status(500).json({ message: "Error deleting task", error });
     }
   }
+
+  // 5. 【追加】 DELETE /tasks (完全リセット用の一括削除メソッド)
+  async deleteAll(req: Request, res: Response): Promise<void> {
+    try {
+      await taskService.deleteAllTasks();
+      res.status(200).json({ message: "All tasks successfully deleted" });
+    } catch (error) {
+      console.error("一括削除エラー:", error);
+      res.status(500).json({ message: "Error resetting tasks", error });
+    }
+  }
 }

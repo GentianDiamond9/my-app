@@ -46,7 +46,12 @@ export class TaskService {
     });
   }
 
-  // getStatistics メソッドの部分を次のように書き換えるのじゃ
+  // 【追加】全件削除（完全リセット機能用）
+  async deleteAllTasks(): Promise<void> {
+    await prisma.task.deleteMany({});
+  }
+
+  // getStatistics メソッド
   async getStatistics() {
     const now = new Date();
     // 過去1週間、1ヶ月の「期限」が設定されていたタスクを対象にする

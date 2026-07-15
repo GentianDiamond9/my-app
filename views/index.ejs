@@ -412,7 +412,66 @@
         </div>
     </div>
 
-<script>
+<hr style="border: 0; border-top: 1px solid var(--border); margin: 60px 0 20px 0;">
+    <div class="settings-container" style="max-width: 800px; margin: 0 auto 40px auto; padding: 20px; background: var(--card-bg, #f8fafc); border-radius: 12px; border: 1px solid var(--border);">
+        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">⚙️ システム設定・データ管理</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
+            タスク管理データの保存、バックアップ、およびデータベースの完全初期化を行えます。
+        </p>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button id="backupBtn" class="btn" style="background: #2563eb; color: white; display: flex; align-items: center; gap: 6px; font-weight: 500; padding: 8px 16px;">
+                📥 データをエクスポート (JSON)
+            </button>
+            <button id="resetBtn" class="btn" style="background: #dc2626; color: white; display: flex; align-items: center; gap: 6px; font-weight: 500; padding: 8px 16px;">
+                ⚠️ 全データを完全リセット
+            </button>
+        </div>
+    </div>
+
+    <style>
+        /* 1. ツリーマップのノードが重ならないためのCSS強制ルール */
+        #treemapContainer {
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .treemap-node {
+            position: absolute;
+            box-sizing: border-box; /* 境界線の幅を含めてサイズ計算 */
+            border: 2px solid var(--bg, #ffffff); /* タスク同士の間に明確な境界を設ける */
+            border-radius: 8px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 8px;
+        }
+        .treemap-node:hover {
+            transform: scale(0.99); /* 重なりを防ぐため浮かせず、わずかに内側に縮むプロ仕様 */
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        /* 2. 劇的演出：破片（ポーション）スタイル */
+        .shatter-piece {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            will-change: transform, opacity;
+            border-radius: 2px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        .sparkle-particle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 10000;
+            border-radius: 50%;
+            will-change: transform, opacity;
+        }
+    </style>
+
+    <script>
         // 1. サーバーから渡されたタスクデータをフロントエンドの変数に確実に代入
         let allTasks = <%- JSON.stringify(tasks) %>;
 
@@ -425,6 +484,7 @@
             buildTagHistory();
             calculateRates();
             renderTreemap();
+            setupSettingsEvents(); // 設定メニューのイベントバインド
         });
 
         // A. テーマ切り替え
@@ -465,7 +525,7 @@
             });
         }
 
-        // C. プログレスバー・達成率の計算ロジック
+        // C. プログレスバー・達成率の計算
         function calculateRates() {
             const now = new Date();
             const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -500,14 +560,13 @@
             document.getElementById('monthRateBar').style.width = `${monthRate}%`;
         }
 
-        // D. イベントリスナー
+        // D. イベントリスナー（デリゲーション）
         document.getElementById('taskList').addEventListener('click', async (e) => {
             const toggleBtn = e.target.closest('.toggle-btn');
             const deleteBtn = e.target.closest('.delete-btn');
 
             if (toggleBtn) {
                 const id = Number(toggleBtn.getAttribute('data-id'));
-                // 安全なBoolean変換
                 const targetStatus = toggleBtn.getAttribute('data-status') === 'true';
                 await toggleTaskStatus(id, targetStatus, toggleBtn);
             }
@@ -518,68 +577,132 @@
             }
         });
 
-        // 🎇 進化版フィジカル粒子スパーク演出 (Promise)
-        function triggerAdvancedSparkles(x, y, baseColor) {
+        // 🎇 超進化：パネル爆散＆フィジカル粒子スパーク演出
+        function triggerShatterAndSparkles(panelElement, baseColor) {
             return new Promise((resolve) => {
-                const particleCount = 50;
-                const colors = [baseColor, '#ffffff', '#ffd700', '#ff6b6b'];
-                let activeParticles = particleCount;
-                
+                const rect = panelElement.getBoundingClientRect();
+                const centerX = rect.left + window.scrollX + rect.width / 2;
+                const centerY = rect.top + window.scrollY + rect.height / 2;
+
+                // 1. パネル自体を画面上で徐々に透明化しつつ縮小
+                panelElement.style.transition = 'all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                panelElement.style.transform = 'scale(0.8) rotate(-3deg)';
+                panelElement.style.opacity = '0';
+                panelElement.style.filter = 'blur(4px)';
+
+                const shardCount = 28; // 飛び散るパネルの破片数
+                const particleCount = 60; // 飛び散る光の粒子数
+                let activeElements = shardCount + particleCount;
+
+                const colors = [baseColor, '#ffffff', '#ffd700', '#ff4757', '#2ed573'];
+
+                // --- 破片（Shatter）生成 ---
+                for (let i = 0; i < shardCount; i++) {
+                    const shard = document.createElement('div');
+                    shard.className = 'shatter-piece';
+                    
+                    // ランダムな三角形に近い四角形のポリゴン風破片を作る
+                    const w = Math.random() * 25 + 10;
+                    const h = Math.random() * 25 + 10;
+                    shard.style.width = `${w}px`;
+                    shard.style.height = `${h}px`;
+                    shard.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    shard.style.clipPath = `polygon(${Math.random()*30}% ${Math.random()*30}%, ${70+Math.random()*30}% ${Math.random()*30}%, ${70+Math.random()*30}% ${70+Math.random()*30}%, ${Math.random()*30}% ${70+Math.random()*30}%)`;
+
+                    // パネル全体の領域から均等に初期配置を散らす
+                    const startX = rect.left + window.scrollX + (Math.random() * rect.width);
+                    const startY = rect.top + window.scrollY + (Math.random() * rect.height);
+                    shard.style.left = `${startX}px`;
+                    shard.style.top = `${startY}px`;
+                    document.body.appendChild(shard);
+
+                    const angle = Math.random() * Math.PI * 2;
+                    const force = Math.random() * 12 + 5;
+                    let vx = Math.cos(angle) * force;
+                    let vy = Math.sin(angle) * force - 3; // 少し上に噴き上げる
+                    let rot = Math.random() * 360;
+                    let rotSpeed = (Math.random() - 0.5) * 15;
+                    let opacity = 1;
+                    const gravity = 0.3;
+
+                    let px = startX;
+                    let py = startY;
+
+                    const animShard = () => {
+                        if (opacity <= 0.02) {
+                            shard.remove();
+                            activeElements--;
+                            if (activeElements === 0) resolve();
+                            return;
+                        }
+                        vy += gravity;
+                        px += vx;
+                        py += vy;
+                        rot += rotSpeed;
+                        opacity -= 0.015;
+
+                        shard.style.left = `${px}px`;
+                        shard.style.top = `${py}px`;
+                        shard.style.transform = `rotate(${rot}deg) scale(${opacity})`;
+                        shard.style.opacity = opacity;
+
+                        requestAnimationFrame(animShard);
+                    };
+                    requestAnimationFrame(animShard);
+                }
+
+                // --- スパーク（火花）生成 ---
                 for (let i = 0; i < particleCount; i++) {
                     const p = document.createElement('div');
                     p.className = 'sparkle-particle';
                     
-                    const size = Math.random() * 10 + 4;
+                    const size = Math.random() * 8 + 3;
                     p.style.width = `${size}px`;
                     p.style.height = `${size}px`;
                     p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    p.style.boxShadow = `0 0 8px ${colors[Math.floor(Math.random() * colors.length)]}`;
                     
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = Math.random() * 10 + 4;
-                    let vx = Math.cos(angle) * speed;
-                    let vy = Math.sin(angle) * speed;
-                    
-                    p.style.left = `${x}px`;
-                    p.style.top = `${y}px`;
+                    p.style.left = `${centerX}px`;
+                    p.style.top = `${centerY}px`;
                     document.body.appendChild(p);
 
-                    let posX = x;
-                    let posY = y;
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 15 + 6; // 超高速
+                    let vx = Math.cos(angle) * speed;
+                    let vy = Math.sin(angle) * speed;
                     let opacity = 1;
-                    const gravity = 0.25;
+                    const gravity = 0.2;
 
-                    const animate = () => {
+                    let px = centerX;
+                    let py = centerY;
+
+                    const animSpark = () => {
                         if (opacity <= 0.02) {
                             p.remove();
-                            activeParticles--;
-                            if (activeParticles === 0) {
-                                resolve();
-                            }
+                            activeElements--;
+                            if (activeElements === 0) resolve();
                             return;
                         }
                         vy += gravity;
-                        posX += vx;
-                        posY += vy;
-                        opacity -= 0.015;
+                        px += vx;
+                        py += vy;
+                        opacity -= 0.02;
 
-                        p.style.left = `${posX}px`;
-                        p.style.top = `${posY}px`;
+                        p.style.left = `${px}px`;
+                        p.style.top = `${py}px`;
                         p.style.opacity = opacity;
                         p.style.transform = `scale(${opacity})`;
 
-                        requestAnimationFrame(animate);
+                        requestAnimationFrame(animSpark);
                     };
-                    requestAnimationFrame(animate);
+                    requestAnimationFrame(animSpark);
                 }
             });
         }
 
         async function toggleTaskStatus(id, targetStatus, buttonElement) {
             try {
-                // 安全にBoolean型へキャストしてAPIに渡す
                 const isCompletedValue = Boolean(targetStatus);
-                
-                // ルートパス不一致（/api/tasks等）の可能性も考慮し、エラー時はコンソールにログを吐きます
                 const response = await fetch(`/tasks/${id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -589,49 +712,86 @@
                 if (response.ok) {
                     if (isCompletedValue === true) {
                         const originalTask = allTasks.find(t => t.id === id);
-                        if (originalTask && originalTask.importance >= 2) {
-                            const rect = buttonElement.getBoundingClientRect();
-                            const nodeColor = originalTask.color && originalTask.color !== '#64748b' ? originalTask.color : '#4f46e5';
+                        // 親のタスクカードコンテナを取得
+                        const taskCard = document.getElementById(`task-${id}`);
+                        
+                        if (taskCard) {
+                            const nodeColor = originalTask && originalTask.color && originalTask.color !== '#64748b' ? originalTask.color : '#4f46e5';
                             
-                            const clickX = rect.left + window.scrollX + rect.width / 2;
-                            const clickY = rect.top + window.scrollY + rect.height / 2;
-                            
-                            buttonElement.style.opacity = '0.3';
-                            
-                            // エフェクト終了まで待つ
-                            await triggerAdvancedSparkles(clickX, clickY, nodeColor);
-                            await new Promise(r => setTimeout(r, 200));
+                            // 1. パネル爆裂粉砕エフェクト（確実に中心位置から）をトリガーし、終了まで待つ
+                            await triggerShatterAndSparkles(taskCard, nodeColor);
                         }
                     }
                     location.reload();
                 } else {
                     const errorText = await response.text();
-                    console.error("サーバーエラー詳細:", errorText);
-                    alert(`ステータスの更新に失敗しました。詳細：\nステータスコード: ${response.status}\nエラー内容: ${errorText}`);
+                    alert(`ステータスの更新に失敗しました。\nエラー内容: ${errorText}`);
                 }
             } catch (err) {
-                console.error("ステータス更新中の例外エラー:", err);
-                alert('サーバーとの接続に失敗しました。エンドポイントURL（/tasks/:id）を確認してください。');
+                console.error("ステータス更新エラー:", err);
+                alert('サーバーとの接続に失敗しました。');
             }
         }
 
         async function deleteTask(id) {
+            const taskCard = document.getElementById(`task-${id}`);
             if (!confirm("本当に削除しますか？")) return;
             try {
                 const response = await fetch(`/tasks/${id}`, { method: 'DELETE' });
                 if (response.ok) {
+                    if (taskCard) {
+                        // 削除時も少し控えめな爆破エフェクトを発生
+                        await triggerShatterAndSparkles(taskCard, '#ef4444');
+                    }
                     location.reload();
                 } else {
-                    const errorText = await response.text();
-                    console.error("削除エラー詳細:", errorText);
                     alert('削除に失敗しました。');
                 }
             } catch (err) {
-                console.error("削除中の例外エラー:", err);
+                console.error("削除エラー:", err);
             }
         }
 
-        // 📈 E. プロ仕様 Squarified Treemap アルゴリズム
+        // ⚙️ F. 設定メニュー用の機能実装
+        function setupSettingsEvents() {
+            // バックアップファイルのダウンロード (JSON)
+            document.getElementById('backupBtn').addEventListener('click', () => {
+                try {
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(allTasks, null, 2));
+                    const downloadAnchor = document.createElement('a');
+                    const dateStr = new Date().toISOString().slice(0,10);
+                    downloadAnchor.setAttribute("href", dataStr);
+                    downloadAnchor.setAttribute("download", `tasks_backup_${dateStr}.json`);
+                    document.body.appendChild(downloadAnchor);
+                    downloadAnchor.click();
+                    downloadAnchor.remove();
+                } catch (err) {
+                    alert('バックアップのエクスポートに失敗しました。');
+                }
+            });
+
+            // 完全データベースリセット
+            document.getElementById('resetBtn').addEventListener('click', async () => {
+                if (!confirm("⚠️ 【超重要警告】\nデータベース内のすべてのタスクデータが「完全に」消去されます。\nこの操作は元に戻せません。本当によろしいですか？")) return;
+                if (!confirm("本当に、本当にすべて消去してもよろしいですか？")) return;
+
+                try {
+                    const response = await fetch('/tasks', { method: 'DELETE' }); // DELETE /tasks
+                    if (response.ok) {
+                        alert('すべてのタスクデータが初期化されました。');
+                        location.reload();
+                    } else {
+                        const errText = await response.text();
+                        alert(`リセットに失敗しました。\nサーバー応答: ${errText}`);
+                    }
+                } catch (err) {
+                    console.error("リセット中の通信エラー:", err);
+                    alert('サーバーとの通信に失敗しました。');
+                }
+            });
+        }
+
+        // 📈 E. プロ仕様 Squarified Treemap アルゴリズム (重なりを徹底排除した座標レンダリング)
         function squarify(nodes, containerWidth, containerHeight) {
             const result = [];
             if (nodes.length === 0) return result;
@@ -765,10 +925,11 @@
                     node.style.backgroundColor = 'var(--default-node)';
                 }
 
-                node.style.left = `${layout.x}px`;
-                node.style.top = `${layout.y}px`;
-                node.style.width = `${layout.w}px`;
-                node.style.height = `${layout.h}px`;
+                // 📐 重なり防止のキーポイント: 小数点端数による隙間・かぶりの誤差を完全に排除する
+                node.style.left = `${Math.floor(layout.x)}px`;
+                node.style.top = `${Math.floor(layout.y)}px`;
+                node.style.width = `${Math.floor(layout.w)}px`;
+                node.style.height = `${Math.floor(layout.h)}px`;
 
                 const area = layout.w * layout.h;
                 let fontSize = 0.8;
@@ -778,35 +939,31 @@
 
                 node.style.fontSize = `${fontSize}rem`;
 
-                // 🗓 期限の計算ロジック（本来の期限から1日引いた値を表示）
+                // 期限計算 (1日短く表示 & 24時間以内は分表示)
                 let timeStatusText = "";
                 const diffMs = layout.diffTime;
 
                 if (diffMs < 0) {
-                    // 期限超過時
                     const days = Math.abs(diffMs) / (1000 * 60 * 60 * 24);
                     timeStatusText = `🚨 超過: ${days.toFixed(1)}日`;
                 } else {
-                    // 本来の期限まで24時間（1日）以内、つまり「表示上の期限が0日以下」になった場合、分単位で表示
                     const oneDayMs = 24 * 60 * 60 * 1000;
                     if (diffMs <= oneDayMs) {
                         const minutesLeft = Math.max(0, Math.floor(diffMs / (1000 * 60)));
                         timeStatusText = `⏳ 残り: ${minutesLeft}分`;
                     } else {
-                        // 本来の残り日数から1日短くして表示
                         const originalDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
                         const adjustedDays = originalDays - 1;
                         timeStatusText = `⏳ 残り: ${adjustedDays}日`;
                     }
                 }
 
-                // タグ表示部分
                 const tagLabel = layout.tag ? `[${layout.tag}]` : 'タグなし';
 
                 node.innerHTML = `
-                    <div class="node-title">${layout.title}</div>
-                    <div class="node-tag" style="font-size: ${fontSize * 0.75}rem; opacity: 0.9; margin-top: 2px;">🏷️ ${tagLabel}</div>
-                    <div class="node-size" style="font-size: ${fontSize * 0.8}rem; margin-top: 4px; font-weight: bold;">${timeStatusText}</div>
+                    <div class="node-title" style="font-weight: 700; word-break: break-all;">${layout.title}</div>
+                    <div class="node-tag" style="font-size: ${fontSize * 0.75}rem; opacity: 0.9; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🏷️ ${tagLabel}</div>
+                    <div class="node-size" style="font-size: ${fontSize * 0.8}rem; margin-top: 4px; font-weight: bold; white-space: nowrap;">${timeStatusText}</div>
                 `;
 
                 node.addEventListener('mouseenter', () => {
