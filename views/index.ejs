@@ -940,32 +940,53 @@ const now = new Date();
             }, 100);
         });
 
-        // 📦 データをJSONファイルとして保存（ダウンロード）する処理
+        // 📦 データをJSONファイルとして安全に保存（ダウンロード）する処理
         document.getElementById('exportJsonBtn').addEventListener('click', () => {
-            // サーバーから渡されている現在のタスクデータ（EJSで展開）
-            // もし `tasks` 変数がグローバルにない場合は、以下のように現在定義されているオブジェクトから取得します
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
-            const downloadAnchor = document.createElement('a');
-            
-            // ファイル名に現在の日時を付与
-            const now = new Date();
-            const dateStr = now.toISOString().split('T')[0];
-            
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `visual_tasks_backup_${dateStr}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
+            try {
+                // 1. EJSから渡されている tasks データを安全にJSON文字列化
+                // (サーバーサイドから渡された「動的オブジェクト」を正しく文字列に変えます)
+                const jsonString = JSON.stringify(tasks, null, 2);
+                
+                // 2. Data URLの代わりに、メモリ上に安全なバイナリデータ(Blob)を作成
+                const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+                
+                // 3. Blobに対する一時的なダウンロード用URLを発行
+                const url = URL.createObjectURL(blob);
+                
+                // 4. ダミーのアンカータグを作成してクリックを発火
+                const downloadAnchor = document.createElement('a');
+                
+                // ファイル名に現在の日時(JST)を付与して分かりやすくする
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                
+                downloadAnchor.href = url;
+                downloadAnchor.download = `visual_tasks_backup_${dateStr}.json`;
+                
+                // 5. ドキュメントに一時的に追加してクリックし、即座にクリーンアップ
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                
+                // メモリリークを防ぐための後処理
+                document.body.removeChild(downloadAnchor);
+                URL.revokeObjectURL(url);
+                
+            } catch (error) {
+                console.error('JSONのエクスポート中にエラーが発生しました:', error);
+                alert('データの保存に失敗しました。コンソールログを確認してください。');
+            }
         });
 
-        // ⚠️ データをすべて削除する処理
+        // ⚠️ データをすべて削除する処理 (前回の正常なコード)
         document.getElementById('deleteAllBtn').addEventListener('click', async () => {
             if (!confirm('本当にすべてのタスクデータを完全に削除しますか？\nこの操作は取り消せません。')) {
                 return;
             }
             
             try {
-                // サーバー側の完全リセットAPI（DELETE /tasks）を呼び出す
                 const response = await fetch('/tasks', {
                     method: 'DELETE',
                     headers: {
@@ -975,7 +996,7 @@ const now = new Date();
 
                 if (response.ok) {
                     alert('すべてのデータが正常に削除されました。');
-                    window.location.reload(); // 画面をリロードして空にする
+                    window.location.reload();
                 } else {
                     alert('データの削除に失敗しました。');
                 }
