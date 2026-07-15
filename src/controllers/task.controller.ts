@@ -8,6 +8,10 @@ export class TaskController {
   async index(req: Request, res: Response): Promise<void> {
     try {
       const tasks = await taskService.getAllTasks();
+      orderBy: [
+        { is_completed: "asc" }, // false (未完了) が先、true (完了) が後に並びます
+        { deadline: "asc" }, // それぞれの中で期限が近い（古い日時）順に並びます
+      ];
       const stats = await taskService.getStatistics(); // 統計データを取得
       // 画面(ejs)に tasks と stats 両方を渡す
       res.render("index", { tasks, stats });

@@ -500,15 +500,13 @@
             document.getElementById('monthRateBar').style.width = `${monthRate}%`;
         }
 
-        // D. イベントリスナー（デリゲーションの確実なキャッチ）
+        // D. イベントリスナー
         document.getElementById('taskList').addEventListener('click', async (e) => {
-            // クリックされた要素自体、またはその親要素がターゲットクラスを持っているか判定
             const toggleBtn = e.target.closest('.toggle-btn');
             const deleteBtn = e.target.closest('.delete-btn');
 
             if (toggleBtn) {
                 const id = Number(toggleBtn.getAttribute('data-id'));
-                // `data-status` が文字列で入ってくるため、正確に真偽値へ変換
                 const targetStatus = toggleBtn.getAttribute('data-status') === 'true';
                 await toggleTaskStatus(id, targetStatus, toggleBtn);
             }
@@ -519,58 +517,66 @@
             }
         });
 
-        // 🎇 進化版フィジカル粒子スパーク演出
+        // 🎇 進化版フィジカル粒子スパーク演出 (Promiseを返すように変更)
         function triggerAdvancedSparkles(x, y, baseColor) {
-            const particleCount = 45;
-            const colors = [baseColor, '#ffffff', '#ffd700'];
-            
-            for (let i = 0; i < particleCount; i++) {
-                const p = document.createElement('div');
-                p.className = 'sparkle-particle';
+            return new Promise((resolve) => {
+                const particleCount = 50;
+                const colors = [baseColor, '#ffffff', '#ffd700', '#ff6b6b']; // 色の種類を増やしてさらに鮮やかに
+                let activeParticles = particleCount;
                 
-                const size = Math.random() * 8 + 4;
-                p.style.width = `${size}px`;
-                p.style.height = `${size}px`;
-                p.style.background = colors[Math.floor(Math.random() * colors.length)];
-                
-                const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 8 + 3;
-                let vx = Math.cos(angle) * speed;
-                let vy = Math.sin(angle) * speed;
-                
-                p.style.left = `${x}px`;
-                p.style.top = `${y}px`;
-                document.body.appendChild(p);
+                for (let i = 0; i < particleCount; i++) {
+                    const p = document.createElement('div');
+                    p.className = 'sparkle-particle';
+                    
+                    const size = Math.random() * 10 + 4; // 少しだけ火花を大きく
+                    p.style.width = `${size}px`;
+                    p.style.height = `${size}px`;
+                    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 10 + 4; // 初速をアップさせて勢いよく広がるように
+                    let vx = Math.cos(angle) * speed;
+                    let vy = Math.sin(angle) * speed;
+                    
+                    p.style.left = `${x}px`;
+                    p.style.top = `${y}px`;
+                    document.body.appendChild(p);
 
-                let posX = x;
-                let posY = y;
-                let opacity = 1;
-                const gravity = 0.22;
+                    let posX = x;
+                    let posY = y;
+                    let opacity = 1;
+                    const gravity = 0.25; // 重力
 
-                const animate = () => {
-                    if (opacity <= 0.02) {
-                        p.remove();
-                        return;
-                    }
-                    vy += gravity;
-                    posX += vx;
-                    posY += vy;
-                    opacity -= 0.015;
+                    const animate = () => {
+                        if (opacity <= 0.02) {
+                            p.remove();
+                            activeParticles--;
+                            // すべての粒子が消え去ったらPromiseを完了する
+                            if (activeParticles === 0) {
+                                resolve();
+                            }
+                            return;
+                        }
+                        vy += gravity;
+                        posX += vx;
+                        posY += vy;
+                        opacity -= 0.015; // フェードアウトスピード
 
-                    p.style.left = `${posX}px`;
-                    p.style.top = `${posY}px`;
-                    p.style.opacity = opacity;
-                    p.style.transform = `scale(${opacity})`;
+                        p.style.left = `${posX}px`;
+                        p.style.top = `${posY}px`;
+                        p.style.opacity = opacity;
+                        p.style.transform = `scale(${opacity})`;
 
+                        requestAnimationFrame(animate);
+                    };
                     requestAnimationFrame(animate);
-                };
-                requestAnimationFrame(animate);
-            }
+                }
+            });
         }
 
         async function toggleTaskStatus(id, targetStatus, buttonElement) {
             try {
-                // バックエンドへAPI通信
+                // 先にAPIに完了リクエストを送信
                 const response = await fetch(`/tasks/${id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -578,47 +584,32 @@
                 });
                 
                 if (response.ok) {
-                    const resData = await response.json();
-                    
-                    // 1. スパーク演出のトリガー（完了時かつ重要度2以上）
+                    // タスクが完了し、かつ重要度2(中)以上の場合にエフェクトを発生
                     if (targetStatus === true) {
                         const originalTask = allTasks.find(t => t.id === id);
                         if (originalTask && originalTask.importance >= 2) {
                             const rect = buttonElement.getBoundingClientRect();
-                            const nodeColor = originalTask.color && originalTask.color !== '#64748b' ? originalTask.color : '#64748b';
-                            triggerAdvancedSparkles(rect.left + window.scrollX + rect.width / 2, rect.top + window.scrollY + rect.height / 2, nodeColor);
+                            const nodeColor = originalTask.color && originalTask.color !== '#64748b' ? originalTask.color : '#4f46e5';
+                            
+                            // エフェクトのトリガー。スクロール位置（window.scrollX/Y）を正確に足す
+                            const clickX = rect.left + window.scrollX + rect.width / 2;
+                            const clickY = rect.top + window.scrollY + rect.height / 2;
+                            
+                            // 完了ボタンなどの文字や周りの要素を一時的に非表示（または薄く）にしてエフェクトを際立たせる
+                            buttonElement.style.opacity = '0.3';
+                            
+                            // エフェクトの完了（約1秒）を確実に待ってからリロード
+                            await triggerAdvancedSparkles(clickX, clickY, nodeColor);
+                            
+                            // 余韻のために0.2秒だけ追加で待つ
+                            await new Promise(r => setTimeout(r, 200));
                         }
                     }
 
-                    // 2. フロントエンドのメモリデータを更新
-                    allTasks = allTasks.map(t => t.id === id ? { 
-                        ...t, 
-                        is_completed: targetStatus,
-                        completed_at: resData.completed_at 
-                    } : t);
-
-                    // 3. HTML側のDOM要素を即座に書き換え
-                    const titleEl = document.getElementById(`title-${id}`);
-                    const actionsContainer = document.getElementById(`actions-${id}`);
-                    
-                    if (targetStatus === true) {
-                        titleEl.classList.add('completed');
-                        actionsContainer.innerHTML = `
-                            <button class="btn btn-warning toggle-btn" data-id="${id}" data-status="false">戻す</button>
-                            <button class="btn btn-danger delete-btn" data-id="${id}">削除</button>
-                        `;
-                    } else {
-                        titleEl.classList.remove('completed');
-                        actionsContainer.innerHTML = `
-                            <button class="btn btn-success toggle-btn" data-id="${id}" data-status="true">完了</button>
-                            <button class="btn btn-danger delete-btn" data-id="${id}">削除</button>
-                        `;
-                    }
-
-                    // 4. マップ、達成率、履歴のトリプル再描画
-                    buildTagHistory();
-                    calculateRates();
-                    renderTreemap();
+                    // データの同期とリロードを実行
+                    location.reload();
+                } else {
+                    alert('ステータスの更新に失敗しました。');
                 }
             } catch (err) {
                 console.error("ステータス更新エラー:", err);
@@ -630,17 +621,9 @@
             try {
                 const response = await fetch(`/tasks/${id}`, { method: 'DELETE' });
                 if (response.ok) {
-                    // 1. メモリデータの更新
-                    allTasks = allTasks.filter(t => t.id !== id);
-                    
-                    // 2. DOMから要素を削除
-                    const taskItem = document.getElementById(`task-${id}`);
-                    if (taskItem) taskItem.remove();
-
-                    // 3. 再描画
-                    buildTagHistory();
-                    calculateRates();
-                    renderTreemap();
+                    location.reload();
+                } else {
+                    alert('削除に失敗しました。');
                 }
             } catch (err) {
                 console.error("削除エラー:", err);
