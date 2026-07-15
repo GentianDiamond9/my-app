@@ -507,6 +507,7 @@
 
             if (toggleBtn) {
                 const id = Number(toggleBtn.getAttribute('data-id'));
+                // 安全なBoolean変換
                 const targetStatus = toggleBtn.getAttribute('data-status') === 'true';
                 await toggleTaskStatus(id, targetStatus, toggleBtn);
             }
@@ -517,24 +518,24 @@
             }
         });
 
-        // 🎇 進化版フィジカル粒子スパーク演出 (Promiseを返すように変更)
+        // 🎇 進化版フィジカル粒子スパーク演出 (Promise)
         function triggerAdvancedSparkles(x, y, baseColor) {
             return new Promise((resolve) => {
                 const particleCount = 50;
-                const colors = [baseColor, '#ffffff', '#ffd700', '#ff6b6b']; // 色の種類を増やしてさらに鮮やかに
+                const colors = [baseColor, '#ffffff', '#ffd700', '#ff6b6b'];
                 let activeParticles = particleCount;
                 
                 for (let i = 0; i < particleCount; i++) {
                     const p = document.createElement('div');
                     p.className = 'sparkle-particle';
                     
-                    const size = Math.random() * 10 + 4; // 少しだけ火花を大きく
+                    const size = Math.random() * 10 + 4;
                     p.style.width = `${size}px`;
                     p.style.height = `${size}px`;
                     p.style.background = colors[Math.floor(Math.random() * colors.length)];
                     
                     const angle = Math.random() * Math.PI * 2;
-                    const speed = Math.random() * 10 + 4; // 初速をアップさせて勢いよく広がるように
+                    const speed = Math.random() * 10 + 4;
                     let vx = Math.cos(angle) * speed;
                     let vy = Math.sin(angle) * speed;
                     
@@ -545,13 +546,12 @@
                     let posX = x;
                     let posY = y;
                     let opacity = 1;
-                    const gravity = 0.25; // 重力
+                    const gravity = 0.25;
 
                     const animate = () => {
                         if (opacity <= 0.02) {
                             p.remove();
                             activeParticles--;
-                            // すべての粒子が消え去ったらPromiseを完了する
                             if (activeParticles === 0) {
                                 resolve();
                             }
@@ -560,7 +560,7 @@
                         vy += gravity;
                         posX += vx;
                         posY += vy;
-                        opacity -= 0.015; // フェードアウトスピード
+                        opacity -= 0.015;
 
                         p.style.left = `${posX}px`;
                         p.style.top = `${posY}px`;
@@ -576,43 +576,42 @@
 
         async function toggleTaskStatus(id, targetStatus, buttonElement) {
             try {
-                // 先にAPIに完了リクエストを送信
+                // 安全にBoolean型へキャストしてAPIに渡す
+                const isCompletedValue = Boolean(targetStatus);
+                
+                // ルートパス不一致（/api/tasks等）の可能性も考慮し、エラー時はコンソールにログを吐きます
                 const response = await fetch(`/tasks/${id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ is_completed: targetStatus })
+                    body: JSON.stringify({ is_completed: isCompletedValue })
                 });
                 
                 if (response.ok) {
-                    // タスクが完了し、かつ重要度2(中)以上の場合にエフェクトを発生
-                    if (targetStatus === true) {
+                    if (isCompletedValue === true) {
                         const originalTask = allTasks.find(t => t.id === id);
                         if (originalTask && originalTask.importance >= 2) {
                             const rect = buttonElement.getBoundingClientRect();
                             const nodeColor = originalTask.color && originalTask.color !== '#64748b' ? originalTask.color : '#4f46e5';
                             
-                            // エフェクトのトリガー。スクロール位置（window.scrollX/Y）を正確に足す
                             const clickX = rect.left + window.scrollX + rect.width / 2;
                             const clickY = rect.top + window.scrollY + rect.height / 2;
                             
-                            // 完了ボタンなどの文字や周りの要素を一時的に非表示（または薄く）にしてエフェクトを際立たせる
                             buttonElement.style.opacity = '0.3';
                             
-                            // エフェクトの完了（約1秒）を確実に待ってからリロード
+                            // エフェクト終了まで待つ
                             await triggerAdvancedSparkles(clickX, clickY, nodeColor);
-                            
-                            // 余韻のために0.2秒だけ追加で待つ
                             await new Promise(r => setTimeout(r, 200));
                         }
                     }
-
-                    // データの同期とリロードを実行
                     location.reload();
                 } else {
-                    alert('ステータスの更新に失敗しました。');
+                    const errorText = await response.text();
+                    console.error("サーバーエラー詳細:", errorText);
+                    alert(`ステータスの更新に失敗しました。詳細：\nステータスコード: ${response.status}\nエラー内容: ${errorText}`);
                 }
             } catch (err) {
-                console.error("ステータス更新エラー:", err);
+                console.error("ステータス更新中の例外エラー:", err);
+                alert('サーバーとの接続に失敗しました。エンドポイントURL（/tasks/:id）を確認してください。');
             }
         }
 
@@ -623,10 +622,12 @@
                 if (response.ok) {
                     location.reload();
                 } else {
+                    const errorText = await response.text();
+                    console.error("削除エラー詳細:", errorText);
                     alert('削除に失敗しました。');
                 }
             } catch (err) {
-                console.error("削除エラー:", err);
+                console.error("削除中の例外エラー:", err);
             }
         }
 
@@ -777,20 +778,35 @@
 
                 node.style.fontSize = `${fontSize}rem`;
 
+                // 🗓 期限の計算ロジック（本来の期限から1日引いた値を表示）
                 let timeStatusText = "";
-                if (layout.diffTime < 0) {
-                    const days = Math.abs(layout.diffTime) / (1000 * 60 * 60 * 24);
+                const diffMs = layout.diffTime;
+
+                if (diffMs < 0) {
+                    // 期限超過時
+                    const days = Math.abs(diffMs) / (1000 * 60 * 60 * 24);
                     timeStatusText = `🚨 超過: ${days.toFixed(1)}日`;
                 } else {
-                    const days = Math.ceil(layout.diffTime / (1000 * 60 * 60 * 24));
-                    timeStatusText = `⏳ 残り: ${days}日`;
+                    // 本来の期限まで24時間（1日）以内、つまり「表示上の期限が0日以下」になった場合、分単位で表示
+                    const oneDayMs = 24 * 60 * 60 * 1000;
+                    if (diffMs <= oneDayMs) {
+                        const minutesLeft = Math.max(0, Math.floor(diffMs / (1000 * 60)));
+                        timeStatusText = `⏳ 残り: ${minutesLeft}分`;
+                    } else {
+                        // 本来の残り日数から1日短くして表示
+                        const originalDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                        const adjustedDays = originalDays - 1;
+                        timeStatusText = `⏳ 残り: ${adjustedDays}日`;
+                    }
                 }
 
-                let tagText = layout.tag ? ` [${layout.tag}]` : '';
+                // タグ表示部分
+                const tagLabel = layout.tag ? `[${layout.tag}]` : 'タグなし';
 
                 node.innerHTML = `
-                    <div class="node-title">${layout.title}${tagText}</div>
-                    <div class="node-size" style="font-size: ${fontSize * 0.8}rem;">${timeStatusText}</div>
+                    <div class="node-title">${layout.title}</div>
+                    <div class="node-tag" style="font-size: ${fontSize * 0.75}rem; opacity: 0.9; margin-top: 2px;">🏷️ ${tagLabel}</div>
+                    <div class="node-size" style="font-size: ${fontSize * 0.8}rem; margin-top: 4px; font-weight: bold;">${timeStatusText}</div>
                 `;
 
                 node.addEventListener('mouseenter', () => {
