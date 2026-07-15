@@ -125,16 +125,6 @@
           }
       });
 
-      // 🔥 【日本時間フォーマット関数】時差のズレによるパースバグ防止
-      function formatToJST(dateString) {
-          if (!dateString) return "-";
-          const d = new Date(dateString);
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          return `${year}/${month}/${day}`;
-      }
-
       // --- 物理2Dパーティクル・シミュレーション ---
       const canvas = document.getElementById('historyCanvas');
       const ctx = canvas.getContext('2d');
@@ -156,14 +146,23 @@
           mouse.y = -1000;
       });
 
+      // 🔥 時差ズレ対策共通フォーマット関数
+      function formatToJST(dateString) {
+          if (!dateString) return "-";
+          const d = new Date(dateString);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}/${month}/${day}`;
+      }
+
       // 破片 (Fragment) クラス
       class Fragment {
           constructor(task) {
               this.title = task.title;
               this.tag = task.tag || "なし";
               this.deadline = new Date(task.deadline);
-              // 🔥 共通フォーマッタを用いて時差のバグを解消
-              this.deadlineStr = formatToJST(task.deadline);
+              this.deadlineStr = formatToJST(task.deadline); // 時刻フォーマットを日本時間に同期
               this.color = task.color || "#6366f1";
               this.importance = Number(task.importance) || 1; // 1, 2, 3 のいずれか
 
@@ -208,7 +207,21 @@
               const daysOld = diffTimeMs / (1000 * 60 * 60 * 24);
               this.baseRotationSpeed = Math.max(0.001, 0.012 / (1 + (daysOld / 20)));
               if (Math.random() > 0.5) this.baseRotationSpeed *= -1;
+
               this.currentRotationSpeed = this.baseRotationSpeed;
+
+              // 🌟 【超軽量化ポイント】タイトル文字のトリミングと決定を初期化時に1度だけ行う (measureTextの毎フレーム実行を回避)
+              const fontBase = this.radius * 0.16;
+              ctx.font = `bold ${Math.max(10, fontBase)}px sans-serif`;
+              const maxW = this.sizeW * 0.75;
+              let displayTitle = this.title;
+              if (ctx.measureText(displayTitle).width > maxW) {
+                  while (ctx.measureText(displayTitle + "...").width > maxW && displayTitle.length > 0) {
+                      displayTitle = displayTitle.slice(0, -1);
+                  }
+                  displayTitle += "...";
+              }
+              this.displayTitle = displayTitle;
           }
 
           update() {
@@ -219,9 +232,9 @@
               if (dist < mouse.radius) {
                   const force = (mouse.radius - dist) / mouse.radius;
                   const repelAngle = Math.atan2(dy, dx);
+
                   this.vx += Math.cos(repelAngle) * force * 1.8;
                   this.vy += Math.sin(repelAngle) * force * 1.8;
-
                   const spinAcceleration = (force * 0.03) / Math.sqrt(this.importance);
                   if (this.baseRotationSpeed > 0) {
                       this.currentRotationSpeed += spinAcceleration;
@@ -272,49 +285,47 @@
               ctx.translate(this.x, this.y);
               ctx.rotate(this.angle);
 
-              // 破片の背景光
-              ctx.shadowBlur = this.radius * 0.4;
-              ctx.shadowColor = this.color;
+              // 🌟 【超軽量化ポイント】負荷の高いボカシシャドウ(shadowBlur)を撤去。
+              // 代わりに、少しずらした半透明多角形を影として1回描画することで軽さと立体感を両立。
+              if (this.vertices.length > 0) {
+                  // 1. フラットシャドウの描画 (3px右、5px下にズラして黒透過色で塗る)
+                  ctx.save();
+                  ctx.translate(3, 5);
+                  ctx.beginPath();
+                  ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
+                  for (let i = 1; i < this.vertices.length; i++) {
+                      ctx.lineTo(this.vertices[i].x, this.vertices[i].y);
+                  }
+                  ctx.closePath();
+                  ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+                  ctx.fill();
+                  ctx.restore();
 
-              // 多角形描画
-              ctx.fillStyle = this.color;
-              ctx.beginPath();
-              ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
-              for (let i = 1; i < this.vertices.length; i++) {
-                  ctx.lineTo(this.vertices[i].x, this.vertices[i].y);
+                  // 2. 本体多角形の描画
+                  ctx.beginPath();
+                  ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
+                  for (let i = 1; i < this.vertices.length; i++) {
+                      ctx.lineTo(this.vertices[i].x, this.vertices[i].y);
+                  }
+                  ctx.closePath();
+                  ctx.fillStyle = this.color + "d4";
+                  ctx.fill();
               }
-              ctx.closePath();
-              ctx.fill();
-
-              // 発光エフェクトオフ
-              ctx.shadowBlur = 0;
-
-              // ガラスの質感を出すためのグラデーション・オーバーレイ
-              const grad = ctx.createLinearGradient(-this.sizeW/2, -this.sizeH/2, this.sizeW/2, this.sizeH/2);
-              grad.addColorStop(0, "rgba(255, 255, 255, 0.25)");
-              grad.addColorStop(0.5, "rgba(255, 255, 255, 0)");
-              grad.addColorStop(1, "rgba(0, 0, 0, 0.45)");
-              ctx.fillStyle = grad;
-              ctx.fill();
 
               // 枠線
+              ctx.lineWidth = 1.8;
               ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
-              ctx.lineWidth = 1.5;
               ctx.stroke();
 
-              // テキスト情報を内部に描画
+              // テキスト情報
+              ctx.fillStyle = "#ffffff";
               ctx.textAlign = "center";
               ctx.textBaseline = "middle";
-
-              // 重要度に応じたフォントサイズ調整
               const fontBase = this.radius * 0.16;
 
-              // 1. タスクタイトル
+              // 1. タスク名 (コンストラクタで事前に計算された displayTitle を描画するだけ)
               ctx.font = `bold ${Math.max(10, fontBase)}px sans-serif`;
-              ctx.fillStyle = "#ffffff";
-              let displayTitle = this.title;
-              if (displayTitle.length > 8) displayTitle = displayTitle.substring(0, 7) + "...";
-              ctx.fillText(displayTitle, 0, -this.radius * 0.22);
+              ctx.fillText(this.displayTitle, 0, -this.radius * 0.22);
 
               // 区切り線
               ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
@@ -343,22 +354,20 @@
           fragments.push(new Fragment(task));
       });
 
-      function animate() {
-          // 背景色クリア (テーマ色に追従)
-          const isLight = document.documentElement.getAttribute('data-theme') !== 'dark';
-          ctx.fillStyle = isLight ? "#f3f4f6" : "#0b0f19";
+      function loop() {
+          const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || !document.documentElement.getAttribute('data-theme');
+          ctx.fillStyle = isDark ? "#070a13" : "#f1f5f9";
           ctx.fillRect(0, 0, width, height);
 
-          // 物理更新 & 描画
           fragments.forEach(f => {
               f.update();
               f.draw();
           });
 
-          requestAnimationFrame(animate);
+          requestAnimationFrame(loop);
       }
 
-      animate();
+      loop();
     </script>
   </body>
 </html>
