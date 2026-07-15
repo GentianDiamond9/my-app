@@ -17,13 +17,14 @@ router.delete("/:id", (req, res) => taskController.delete(req, res));
 router.delete("/", (req, res) => taskController.deleteAll(req, res));
 
 // ---------------------------------------------------------
-// 2. 【新規追加】メモ管理用ルート
+// 2. メモ管理用ルート
 // ---------------------------------------------------------
-// 指定したタスクに紐づくメモ一覧を取得する (GET /tasks/:taskId/memos)
 router.get("/:taskId/memos", (req, res) => taskController.getMemos(req, res));
-
-// 指定したタスクに新しいメモを追加・更新する (POST /tasks/:taskId/memos)
-// ※今回はシンプルに「1つのタスクに1つの最新メモ」または「追加していく」両対応しやすいように、このパスで制御します
 router.post("/:taskId/memos", (req, res) => taskController.saveMemo(req, res));
+
+// ---------------------------------------------------------
+// 3. 【新規追加】 過去の歴史（爆破タスク観測ページ）用ルート
+// ---------------------------------------------------------
+router.get("/history", (req, res) => taskController.history(req, res));
 
 export default router;

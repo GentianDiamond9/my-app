@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Task Treemap</title>
+    <title>Visual Task - Dynamic Task Treemap</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -54,11 +55,11 @@
             border: 1px solid var(--border);
         }
 
-        /* ツリーマップノード（メモポップアップトリガー） */
+        /* ツリーマップノード */
         .treemap-node {
             position: absolute;
             box-sizing: border-box;
-            border: 2.5px solid var(--bg); /* 境界線を背景色と同化させて隙間を作る */
+            border: 2.5px solid var(--bg);
             border-radius: 8px;
             overflow: hidden;
             color: #ffffff;
@@ -81,8 +82,7 @@
             transform: scale(0.97);
         }
 
-        /* 完了済み（爆散中）ノード */
-        .treemap-node.shattering, .task-card.shattering {
+        .treemap-node.shattering {
             pointer-events: none;
             box-shadow: 0 0 25px rgba(255,255,255,0.5);
         }
@@ -121,7 +121,7 @@
             text-overflow: ellipsis;
         }
 
-        /* タグ履歴履歴バッジ */
+        /* タグ履歴バッジ */
         .tag-history-item {
             cursor: pointer;
             padding: 4px 8px;
@@ -135,7 +135,7 @@
             transform: scale(1.05);
         }
 
-        /* モーダルスタイル（メモ編集画面） */
+        /* モーダルスタイル */
         .modal-backdrop {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -185,24 +185,32 @@
 </head>
 <body class="p-6">
 
+    <!-- 🌌 ヘッダー & テーマ切替 -->
     <header class="max-w-6xl mx-auto flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-black tracking-tight flex items-center gap-2">
-                🚀 Dynamic Task Treemap
+                🚀 Visual Task
             </h1>
             <p class="text-xs text-[var(--text-muted)] mt-1">
-                視覚的に優先度を支配する。タスクをクリックすると、進捗メモの閲覧・更新が行えます。
+                視覚的に優先度を支配する。ツリーマップやメモボタン、履歴一覧を活用しましょう。
             </p>
         </div>
-        <button id="themeToggle" class="btn p-3 bg-[var(--card-bg)] border border-[var(--border)] text-xl rounded-xl">
-            🌓
-        </button>
+        <div class="flex items-center gap-3">
+            <a href="/history" class="btn px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm shadow-md flex items-center gap-1.5">
+                🌌 過去の歴史を見る
+            </a>
+            <button id="themeToggle" class="btn p-3 bg-[var(--card-bg)] border border-[var(--border)] text-xl rounded-xl">
+                🌓
+            </button>
+        </div>
     </header>
 
     <main class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
         
+        <!-- ⚙️ 1. 左側：タスク登録・統計パネル -->
         <div class="space-y-6 lg:col-span-1">
             
+            <!-- 新規タスクフォーム -->
             <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-sm">
                 <h2 class="text-lg font-bold mb-4 flex items-center gap-2">📥 タスク新規登録</h2>
                 <form action="/tasks" method="POST" class="space-y-4">
@@ -246,6 +254,7 @@
                 </form>
             </div>
 
+            <!-- 期限内達成率 統計 -->
             <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-sm">
                 <h2 class="text-lg font-bold mb-4 flex items-center gap-2">📊 期限内達成率 (オンタイム率)</h2>
                 <div class="space-y-4">
@@ -272,13 +281,17 @@
 
         </div>
 
+        <!-- 🗺️ 2. 右側：ツリーマップ & タスクリスト -->
         <div class="lg:col-span-2 space-y-6">
             
+            <!-- ツリーマップ表示エリア -->
             <div class="relative">
                 <div id="treemapContainer"></div>
+                <!-- 詳細ホバーオーバーレイ -->
                 <div id="detailOverlay" class="absolute bottom-4 left-4 right-4 bg-slate-900/90 text-white p-3 rounded-lg text-xs leading-relaxed border border-slate-700 pointer-events-none hidden" style="z-index: 100;"></div>
             </div>
 
+            <!-- タスク一覧リスト -->
             <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl">
                 <h2 class="text-lg font-bold mb-4">🗂 タスク管理リスト</h2>
                 <div id="taskList" class="space-y-3">
@@ -304,10 +317,12 @@
                                 </div>
                                 
                                 <div class="flex items-center gap-2 self-end md:self-auto">
+                                    <!-- メモ編集ボタン -->
                                     <button class="btn px-3 py-1.5 text-xs bg-slate-700 text-white rounded-md flex items-center gap-1 font-semibold memo-btn" data-id="<%= task.id %>" data-title="<%= task.title %>">
                                         📝 メモ
                                     </button>
                                     
+                                    <!-- 完了・未完了スイッチ -->
                                     <% if (task.is_completed) { %>
                                         <button class="btn toggle-btn px-3 py-1.5 text-xs bg-amber-600 text-white rounded-md flex items-center gap-1 font-semibold" data-id="<%= task.id %>" data-status="false">
                                             ↩ 未完了に戻す
@@ -318,6 +333,7 @@
                                         </button>
                                     <% } %>
                                     
+                                    <!-- 削除ボタン -->
                                     <button class="btn delete-btn px-2.5 py-1.5 text-xs bg-rose-600 text-white rounded-md" data-id="<%= task.id %>">
                                         🗑 削除
                                     </button>
@@ -331,6 +347,28 @@
         </div>
     </main>
 
+    <!-- 🎯 【新規/改善】 アクション選択モーダル (ツリーマップクリック時に呼び出し) -->
+    <div id="choiceModal" class="modal-backdrop">
+        <div class="modal-content text-center">
+            <h3 id="choiceTaskTitle" class="text-base font-black border-b border-[var(--border)] pb-2.5 mb-5 text-[var(--text)]">タスク操作の選択</h3>
+            <p class="text-sm text-[var(--text-muted)] mb-6">ツリーマップ上のタスクを選択しました。どちらの操作を行いますか？</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button id="choiceMemoBtn" class="btn py-3 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-xl flex flex-col items-center justify-center gap-2">
+                    <span class="text-2xl">📝</span>
+                    <span>メモを編集</span>
+                </button>
+                <button id="choiceCompleteBtn" class="btn py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl flex flex-col items-center justify-center gap-2">
+                    <span class="text-2xl">💥</span>
+                    <span>完了にする (爆発)</span>
+                </button>
+            </div>
+            <button id="closeChoiceBtn" class="btn w-full mt-5 py-2.5 bg-rose-600/10 text-rose-500 border border-rose-500/20 hover:bg-rose-600/20 text-xs font-bold rounded-lg">
+                キャンセル
+            </button>
+        </div>
+    </div>
+
+    <!-- 📝 メモ詳細・編集ポップアップモーダル -->
     <div id="memoModal" class="modal-backdrop">
         <div class="modal-content">
             <h3 id="modalTaskTitle" class="text-base font-black border-b border-[var(--border)] pb-2.5 mb-4 text-[var(--text)]">タスクメモ</h3>
@@ -345,6 +383,7 @@
         </div>
     </div>
 
+    <!-- ⚙️ 画面最下部：設定メニュー -->
     <hr style="border: 0; border-top: 1px solid var(--border); margin: 60px 0 20px 0;">
     <div class="settings-container animate-fade-in" style="max-width: 800px; margin: 0 auto 40px auto; padding: 20px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border);">
         <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; font-weight: 700;">⚙️ システム設定・データ管理</h3>
@@ -361,10 +400,11 @@
         </div>
     </div>
 
+    <!-- 💾 演出ロジック & イベントバインド記述 -->
     <script>
-        // 1. サーバーから渡されたタスクデータをフロントエンドの変数に代入
         let allTasks = <%- JSON.stringify(tasks) %>;
-        let currentTargetTaskId = null; // メモ編集ターゲット
+        let currentTargetTaskId = null;
+        let currentTargetTaskTitle = "";
 
         // 初期ロード処理
         window.addEventListener('load', () => {
@@ -377,6 +417,7 @@
             renderTreemap();
             setupSettingsEvents();
             setupMemoEvents();
+            setupChoiceEvents();
         });
 
         // A. テーマ切り替え
@@ -452,7 +493,7 @@
             document.getElementById('monthRateBar').style.width = `${monthRate}%`;
         }
 
-        // D. リスト内イベントリスナーの監視
+        // D. リスト内イベントリスナー
         document.getElementById('taskList').addEventListener('click', async (e) => {
             const toggleBtn = e.target.closest('.toggle-btn');
             const deleteBtn = e.target.closest('.delete-btn');
@@ -476,27 +517,25 @@
             }
         });
 
-        // 🎇 超進化：物理計算されたツリーマップ爆散スパークエフェクト
+        // 🎇 物理計算されたツリーマップ爆散スパークエフェクト
         function triggerShatterAndSparkles(targetElement, baseColor) {
             return new Promise((resolve) => {
                 const rect = targetElement.getBoundingClientRect();
                 const centerX = rect.left + window.scrollX + rect.width / 2;
                 const centerY = rect.top + window.scrollY + rect.height / 2;
 
-                // ツリーマップ自体を拡大・透過させて消滅へのフェードアウト
                 targetElement.classList.add('shattering');
                 targetElement.style.transition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
                 targetElement.style.transform = 'scale(1.1) rotate(2deg)';
                 targetElement.style.opacity = '0';
                 targetElement.style.filter = 'blur(3px)';
 
-                const shardCount = 35; // 破片の総数
-                const sparkleCount = 65; // スパークの総数
+                const shardCount = 35;
+                const sparkleCount = 65;
                 let activeElements = shardCount + sparkleCount;
 
                 const colors = [baseColor, '#ffffff', '#ffd700', '#ff4365', '#00d2fc'];
 
-                // --- 1. 破片パーツ (Shards) ---
                 for (let i = 0; i < shardCount; i++) {
                     const shard = document.createElement('div');
                     shard.className = 'shatter-piece';
@@ -506,8 +545,6 @@
                     shard.style.width = `${w}px`;
                     shard.style.height = `${h}px`;
                     shard.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                    
-                    // ポリゴン変形
                     shard.style.clipPath = `polygon(${Math.random()*20}% ${Math.random()*20}%, ${80+Math.random()*20}% ${Math.random()*20}%, ${80+Math.random()*20}% ${80+Math.random()*20}%, ${Math.random()*20}% ${80+Math.random()*20}%)`;
 
                     const startX = rect.left + window.scrollX + (Math.random() * rect.width);
@@ -519,7 +556,7 @@
                     const angle = Math.random() * Math.PI * 2;
                     const force = Math.random() * 15 + 6;
                     let vx = Math.cos(angle) * force;
-                    let vy = Math.sin(angle) * force - 5; // 上方へ飛び出す物理
+                    let vy = Math.sin(angle) * force - 5;
                     let rot = Math.random() * 360;
                     let rotSpeed = (Math.random() - 0.5) * 24;
                     let opacity = 1;
@@ -551,7 +588,6 @@
                     requestAnimationFrame(animShard);
                 }
 
-                // --- 2. 高熱スパーク (Sparkles) ---
                 for (let i = 0; i < sparkleCount; i++) {
                     const p = document.createElement('div');
                     p.className = 'sparkle-particle';
@@ -584,8 +620,7 @@
                             return;
                         }
                         vy += gravity;
-                        px += vx;
-                        py += vy;
+                        px += vy;
                         opacity -= 0.02;
 
                         p.style.left = `${px}px`;
@@ -600,7 +635,7 @@
             });
         }
 
-        // タスク完了処理＆爆破演出の制御
+        // タスク完了処理＆爆破演出
         async function toggleTaskStatus(id, targetStatus) {
             try {
                 const isCompletedValue = Boolean(targetStatus);
@@ -613,13 +648,10 @@
                 if (response.ok) {
                     if (isCompletedValue === true) {
                         const originalTask = allTasks.find(t => t.id === id);
-                        
-                        // 【変更点】爆発させるのはリスト側ではなく「ツリーマップ上のパネル」！
                         const treemapNode = document.getElementById(`tree-node-${id}`);
                         
                         if (treemapNode) {
                             const nodeColor = originalTask && originalTask.color && originalTask.color !== '#64748b' ? originalTask.color : '#4f46e5';
-                            // ツリーマップ側のパネルを爆破
                             await triggerShatterAndSparkles(treemapNode, nodeColor);
                         }
                     }
@@ -652,7 +684,43 @@
             }
         }
 
-        // 📝 【新規追加】 メモ専用モーダル管理システム
+        // 🎯 選択モーダル (メモか完了かを選ぶ)
+        const choiceModal = document.getElementById('choiceModal');
+        const choiceTaskTitle = document.getElementById('choiceTaskTitle');
+
+        function openChoiceModal(taskId, taskTitle) {
+            currentTargetTaskId = taskId;
+            currentTargetTaskTitle = taskTitle;
+            choiceTaskTitle.innerText = `🗂 【Visual Task】 ${taskTitle}`;
+            choiceModal.classList.add('active');
+        }
+
+        function closeChoiceModal() {
+            choiceModal.classList.remove('active');
+        }
+
+        function setupChoiceEvents() {
+            document.getElementById('closeChoiceBtn').addEventListener('click', closeChoiceModal);
+            
+            // 選択モーダル枠外
+            choiceModal.addEventListener('click', (e) => {
+                if (e.target === choiceModal) closeChoiceModal();
+            });
+
+            // メモボタン選択
+            document.getElementById('choiceMemoBtn').addEventListener('click', () => {
+                closeChoiceModal();
+                openMemoModal(currentTargetTaskId, currentTargetTaskTitle);
+            });
+
+            // 完了ボタン選択
+            document.getElementById('choiceCompleteBtn').addEventListener('click', async () => {
+                closeChoiceModal();
+                await toggleTaskStatus(currentTargetTaskId, true);
+            });
+        }
+
+        // 📝 メモモーダル
         const memoModal = document.getElementById('memoModal');
         const modalTaskTitle = document.getElementById('modalTaskTitle');
         const modalMemoTextarea = document.getElementById('modalMemoTextarea');
@@ -662,7 +730,6 @@
             modalTaskTitle.innerText = `🗂 【メモ】${taskTitle}`;
             modalMemoTextarea.value = "読み込み中...";
             
-            // モーダルを開く
             memoModal.classList.add('active');
             modalMemoTextarea.focus();
 
@@ -671,9 +738,9 @@
                 if (response.ok) {
                     const memos = await response.json();
                     if (memos.length > 0) {
-                        modalMemoTextarea.value = memos[0].content; // 最新のメモを設定
+                        modalMemoTextarea.value = memos[0].content;
                     } else {
-                        modalMemoTextarea.value = ""; // メモがまだ無ければ空欄にする
+                        modalMemoTextarea.value = "";
                     }
                 } else {
                     modalMemoTextarea.value = "メモの読み込みに失敗しました。";
@@ -691,13 +758,10 @@
 
         function setupMemoEvents() {
             document.getElementById('closeModalBtn').addEventListener('click', closeMemoModal);
-            
-            // 枠外をクリックしたら閉じる
             memoModal.addEventListener('click', (e) => {
                 if (e.target === memoModal) closeMemoModal();
             });
 
-            // メモ保存処理
             document.getElementById('saveModalBtn').addEventListener('click', async () => {
                 if (!currentTargetTaskId) return;
                 
@@ -739,9 +803,7 @@
             });
 
             document.getElementById('resetBtn').addEventListener('click', async () => {
-                if (!confirm("⚠️ 【超重要警告】\nデータベース内のすべてのタスクデータが「完全に」消去されます。\nこの操作は元に戻せません。本当によろしいですか？")) return;
-                if (!confirm("完全に初期化してもよろしいですか？")) return;
-
+                if (!confirm("⚠️ 【超重要警告】\nデータベース内のすべてのタスクデータが「完全に」消去されます。\n本当によろしいですか？")) return;
                 try {
                     const response = await fetch('/tasks', { method: 'DELETE' });
                     if (response.ok) {
@@ -757,7 +819,7 @@
             });
         }
 
-        // 📈 E. 新設計：二分木パーティショニング（Binary Partition）による完全分割型ツリーマップ
+        // 📈 二分木パーティショニングツリーマップ
         function computeBinaryTreemap(nodes, x, y, width, height) {
             if (nodes.length === 0) return [];
             if (nodes.length === 1) {
@@ -794,12 +856,10 @@
             const result = [];
 
             if (width >= height) {
-                // 横分割 (左右)
                 const leftWidth = width * ratio;
                 result.push(...computeBinaryTreemap(leftGroup, x, y, leftWidth, height));
                 result.push(...computeBinaryTreemap(rightGroup, x + leftWidth, y, width - leftWidth, height));
             } else {
-                // 縦分割 (上下)
                 const topHeight = height * ratio;
                 result.push(...computeBinaryTreemap(leftGroup, x, y, width, topHeight));
                 result.push(...computeBinaryTreemap(rightGroup, x, y + topHeight, width, height - topHeight));
@@ -823,7 +883,6 @@
             const now = new Date();
             const labels = {3: '高', 2: '中', 1: '低'};
 
-            // 重みの計算
             const scoredTasks = activeTasks.map(task => {
                 const deadline = new Date(task.deadline);
                 const diffTime = deadline.getTime() - now.getTime();
@@ -846,7 +905,6 @@
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
 
-            // 完全マッピング型レイアウトを算出
             const layoutedNodes = computeBinaryTreemap(scoredTasks, 0, 0, containerWidth, containerHeight);
 
             layoutedNodes.forEach(layout => {
@@ -860,7 +918,6 @@
                     node.style.backgroundColor = 'var(--default-node)';
                 }
 
-                // 計算座標をピクセルにそのまま代入（重複は原理的に発生しません）
                 node.style.left = `${layout.x}px`;
                 node.style.top = `${layout.y}px`;
                 node.style.width = `${layout.w}px`;
@@ -874,7 +931,6 @@
 
                 node.style.fontSize = `${fontSize}rem`;
 
-                // 残り時間のフォーマット
                 let timeStatusText = "";
                 const diffMs = layout.diffTime;
 
@@ -895,7 +951,6 @@
 
                 const tagLabel = layout.tag ? `[${layout.tag}]` : 'なし';
 
-                // サイズに合わせた内包テキスト配置
                 if (area > 8500) {
                     node.innerHTML = `
                         <div class="node-title">${layout.title}</div>
@@ -908,13 +963,12 @@
                     node.innerHTML = `<div class="node-title" style="font-size: ${fontSize * 0.9}rem;">${layout.title}</div>`;
                 }
 
-                // 【機能変更】ツリーマップのノードをクリックしたらメモポップアップを開く
+                // ツリーマップノードをクリックした時に、アクション選択モーダルを開くように変更
                 node.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    openMemoModal(layout.id, layout.title);
+                    openChoiceModal(layout.id, layout.title);
                 });
 
-                // ホバー時のツールチップ表示
                 node.addEventListener('mouseenter', () => {
                     overlay.innerHTML = `
                         <strong>🗂 タスク名:</strong> ${layout.title}<br>
