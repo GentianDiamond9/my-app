@@ -4,13 +4,15 @@ import { TaskService } from "../services/task.service";
 const taskService = new TaskService();
 
 export class TaskController {
-  // GET /tasks
-  async getAll(req: Request, res: Response): Promise<void> {
+  // getAll または 画面を表示しているメソッド（indexなど）を探して、次のように書き換えるのじゃ
+  async index(req: Request, res: Response): Promise<void> {
     try {
       const tasks = await taskService.getAllTasks();
-      res.status(200).json(tasks); // 200 OK
+      const stats = await taskService.getStatistics(); // 統計データを取得
+      // 画面(ejs)に tasks と stats 両方を渡す
+      res.render("index", { tasks, stats });
     } catch (error) {
-      res.status(500).json({ message: "Internal Server Error", error });
+      res.status(500).send("Error");
     }
   }
 
@@ -54,7 +56,8 @@ export class TaskController {
       if (deadline !== undefined) updateData.deadline = new Date(deadline);
       if (importance !== undefined) updateData.importance = Number(importance);
       if (is_completed !== undefined)
-        updateData.is_completed = Boolean(is_completed);
+        updateData.is_completed =
+          is_completed === "true" || is_completed === true;
 
       const updatedTask = await taskService.updateTask(id, updateData);
       res.redirect("/");
