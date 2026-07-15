@@ -46,23 +46,35 @@ export class TaskService {
     });
   }
 
-  // 過去1週間・1ヶ月の「期限内達成率」を計算する
+  // getStatistics メソッドの部分を次のように書き換えるのじゃ
   async getStatistics() {
     const now = new Date();
+    // 過去1週間、1ヶ月の「期限」が設定されていたタスクを対象にする
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const calculateRate = async (since: Date) => {
-      // 指定期間内に期限が設定されていたタスクを取得
+      // 期間内に期限(deadline)が来たタスクをすべて取得（完了・未完了問わず）
       const tasks = await prisma.task.findMany({
         where: { deadline: { gte: since, lte: now } },
       });
+
       if (tasks.length === 0) return 0;
-      // 「完了済み」かつ「完了日時が期限内」のものをカウント
-      const onTime = tasks.filter(
-        (t) => t.is_completed && t.completed_at && t.completed_at <= t.deadline,
-      ).length;
-      return Math.round((onTime / tasks.length) * 100);
+
+      // 「完了済み」かつ「期限が切れる前に完了していた」タスクを抽出
+      const onTimeTasks = tasks.filter((t) => {
+        return (
+          t.is_completed &&
+          t.completed_at &&
+          new Date(t.completed_at) <= new Date(t.deadline)
+        );
+      });
+
+      const rate = Math.round((onTimeTasks.length / tasks.length) * 100);
+      console.log(
+        `統計計算 [${since.toLocaleDateString()}〜]: 対象 ${tasks.length}件, 期限内完了 ${onTimeTasks.length}件 -> ${rate}%`,
+      );
+      return rate;
     };
 
     return {

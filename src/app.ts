@@ -1,35 +1,37 @@
 // src/app.ts
 import "dotenv/config";
 import express from "express";
-import path from "node:path"; // パスを扱う道具を追加
+import path from "node:path";
 import prisma from "./prisma";
 import taskRoutes from "./routes/task.routes";
+import { TaskService } from "./services/task.service"; // サービスをインポート
 
 const app = express();
-const PORT = process.env.PORT || 10000; // Renderのポートに対応
+const PORT = process.env.PORT || 10000;
+const taskService = new TaskService(); // インスタンスを作成
 
-// --- ここが重要！View Engine の設定じゃ ---
 app.set("view engine", "ejs");
-// フォルダの場所を確実に教えるのじゃ（srcの中にapp.tsがある場合の指定）
 app.set("views", path.join(process.cwd(), "views"));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// タスク管理のAPIルート
 app.use("/tasks", taskRoutes);
 
-// ルート URL にアクセスした時にタスク一覧画面を表示するのじゃ
+// ルート URL の処理を修正
 app.get("/", async (req, res) => {
   try {
-    const tasks = await prisma.task.findMany({
-      orderBy: [{ is_completed: "asc" }, { importance: "desc" }],
-    });
-    // views/index.ejs を使って画面を表示するぞ
-    res.render("index", { tasks });
+    // 1. タスク一覧を取得
+    const tasks = await taskService.getAllTasks();
+
+    // 2. 統計データ（達成率）を取得
+    const stats = await taskService.getStatistics();
+
+    // 3. 両方のデータを EJS に渡す
+    res.render("index", { tasks, stats });
   } catch (error) {
-    console.error(error);
-    res.status(500).send("データベース接続エラーじゃ...");
+    console.error("エラーが発生したぞ:", error);
+    res.status(500).send("サーバーエラーじゃ...");
   }
 });
 
