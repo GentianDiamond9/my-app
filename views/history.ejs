@@ -214,184 +214,242 @@
           return formatter.format(d);
       }
 
-      // 破片 (Fragment) クラス
-      class Fragment {
-          constructor(task) {
-              this.title = task.title;
-              this.tag = task.tag || "なし";
-              this.deadline = new Date(task.deadline);
-              this.deadlineStr = formatToJST(task.deadline);
-              this.color = task.color || "#6366f1";
-              this.importance = Number(task.importance) || 1;
+      // マウスを離した瞬間の処理を修正（5秒の初期値と初期速度をFragmentに記録する）
+       window.addEventListener('mouseup', () => {
+           if (draggedFragment) {
+               // 投げ飛ばされた瞬間の初期速度を設定
+               draggedFragment.vx = mouse.vx * 0.8;
+               draggedFragment.vy = mouse.vy * 0.8;
 
-              // 初期配置
-              this.x = Math.random() * (width - 300) + 150;
-              this.y = Math.random() * (height - 300) + 150;
+               // 直線的減衰に使うための初期速度を保持しておく
+               draggedFragment.initVx = draggedFragment.vx;
+               draggedFragment.initVy = draggedFragment.vy;
 
-              // 重要度の面積比例システム
-              const baseRadius = 60;
-              const scaleFactor = Math.sqrt(this.importance);
-              this.radius = baseRadius * scaleFactor;
+               // スピン速度
+               const speed = Math.sqrt(mouse.vx * mouse.vx + mouse.vy * mouse.vy);
+               draggedFragment.initSpin = (mouse.vx > 0 ? 1 : -1) * Math.min(0.2, speed * 0.015);
+               draggedFragment.currentRotationSpeed = draggedFragment.initSpin;
 
-              // 「砕け散ったかけら」のデザイン頂点を事前生成
-              this.points = [];
-              const numPoints = 5 + Math.floor(Math.random() * 4); // 5〜8角形
-              for (let i = 0; i < numPoints; i++) {
-                  const angle = (i / numPoints) * Math.PI * 2;
-                  const offsetRadius = this.radius * (0.8 + Math.random() * 0.4);
-                  this.points.push({
-                      x: Math.cos(angle) * offsetRadius,
-                      y: Math.sin(angle) * offsetRadius
-                  });
-              }
+               // 💡 5秒（1秒=60フレーム想定で計300フレーム）で減衰させるカウンターをリセット
+               draggedFragment.decelFrame = 300;
 
-              // 速度
-              this.vx = 0;
-              this.vy = 0;
+               draggedFragment.isDragging = false;
+               draggedFragment = null;
+           }
+           mouse.isDown = false;
+       });
 
-              // 回転角度
-              this.angle = Math.random() * Math.PI * 2;
-              this.currentRotationSpeed = 0;
+       // 破片 (Fragment) クラスのアップデート
+       class Fragment {
+           constructor(task) {
+               this.title = task.title;
+               this.tag = task.tag || "なし";
+               this.deadline = new Date(task.deadline);
+               this.deadlineStr = formatToJST(task.deadline);
+               this.color = task.color || "#6366f1";
+               this.importance = Number(task.importance) || 1;
 
-              // フラグ管理
-              this.isDragging = false;
-              this.isSleeping = true;
-          }
+               // 初期配置
+               this.x = Math.random() * (width - 300) + 150;
+               this.y = Math.random() * (height - 300) + 150;
 
-          // ⚡ [ドラッグ&ドロップ対応物理エンジン]
-          update() {
-              if (this.isDragging) {
-                  // ドラッグ中は、遅延なくマウスの動きに追従させる
-                  this.x += (mouse.x - this.x) * 0.35;
-                  this.y += (mouse.y - this.y) * 0.35;
-                  this.vx = 0;
-                  this.vy = 0;
-                  this.currentRotationSpeed *= 0.9;
-                  return;
-              }
+               // 重要度の面積比例システム
+               const baseRadius = 60;
+               const scaleFactor = Math.sqrt(this.importance);
+               this.radius = baseRadius * scaleFactor;
 
-              if (this.isSleeping) return;
+               // 「砕け散ったかけら」のデザイン頂点を事前生成
+               this.points = [];
+               const numPoints = 5 + Math.floor(Math.random() * 4); // 5〜8角形
+               for (let i = 0; i < numPoints; i++) {
+                   const angle = (i / numPoints) * Math.PI * 2;
+                   const offsetRadius = this.radius * (0.8 + Math.random() * 0.4);
+                   this.points.push({
+                       x: Math.cos(angle) * offsetRadius,
+                       y: Math.sin(angle) * offsetRadius
+                   });
+               }
 
-              // 🌀 摩擦抵抗 (空気抵抗)。5秒（約300フレーム）かけて、投げられた力が0に収束するように減衰率を設計
-              // 0.985の減衰率をかけることで、5秒後に速度が十分に小さくなり、完全静止（スリープ）します
-              this.vx *= 0.985;
-              this.vy *= 0.985;
-              this.currentRotationSpeed *= 0.98;
+               // 速度
+               this.vx = 0;
+               this.vy = 0;
+               this.initVx = 0;
+               this.initVy = 0;
 
-              this.x += this.vx;
-              this.y += this.vy;
-              this.angle += this.currentRotationSpeed;
+               // 回転角度
+               this.angle = Math.random() * Math.PI * 2;
+               this.currentRotationSpeed = 0;
+               this.initSpin = 0;
 
-              // 速度と回転が十分小さくなったら完全に静止（スリープ）
-              if (Math.abs(this.vx) < 0.05 && Math.abs(this.vy) < 0.05 && Math.abs(this.currentRotationSpeed) < 0.001) {
-                  this.vx = 0;
-                  this.vy = 0;
-                  this.currentRotationSpeed = 0;
-                  this.isSleeping = true;
-              }
+               // 減速のフレーム数カウンター (5秒 = 300フレーム)
+               this.decelFrame = 0;
 
-              // 画面端の跳ね返り
-              const boundR = this.radius;
-              if (this.x - boundR < 0) {
-                  this.x = boundR;
-                  this.vx *= -0.7; // 跳ね返り時に少し威力をロスさせる
-              } else if (this.x + boundR > width) {
-                  this.x = width - boundR;
-                  this.vx *= -0.7;
-              }
+               // フラグ管理
+               this.isDragging = false;
+               this.isSleeping = true;
+           }
 
-              if (this.y - boundR < 0) {
-                  this.y = boundR;
-                  this.vy *= -0.7;
-              } else if (this.y + boundR > height) {
-                  this.y = height - boundR;
-                  this.vy *= -0.7;
-              }
-          }
+           // ⚡ [直線的減衰の物理ロジック]
+           update() {
+               if (this.isDragging) {
+                   this.x += (mouse.x - this.x) * 0.35;
+                   this.y += (mouse.y - this.y) * 0.35;
+                   this.vx = 0;
+                   this.vy = 0;
+                   this.currentRotationSpeed = 0;
+                   this.decelFrame = 0;
+                   return;
+               }
 
-          draw() {
-              // 画面外のものは描画スキップ
-              const margin = this.radius * 1.5;
-              if (this.x + margin < 0 || this.x - margin > width || this.y + margin < 0 || this.y - margin > height) {
-                  return;
-              }
+               if (this.isSleeping) return;
 
-              ctx.save();
-              ctx.translate(this.x, this.y);
-              ctx.rotate(this.angle);
+               // 💡 直線的な減衰（等加速度運動による減速）
+               if (this.decelFrame > 0) {
+                   this.decelFrame--;
 
-              // ドラッグ中のハイライト用エフェクト
-              if (this.isDragging) {
-                  ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
-                  ctx.beginPath();
-                  ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2);
-                  ctx.fill();
-              }
+                   // 残りフレーム数の割合（1.0 から 5秒かけて 0.0 まで直線的に減少する）
+                   const ratio = this.decelFrame / 300;
 
-              // 1. 擬似シャドウ
-              ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
-              ctx.beginPath();
-              ctx.moveTo(this.points[0].x + 4, this.points[0].y + 4);
-              for (let i = 1; i < this.points.length; i++) {
-                  ctx.lineTo(this.points[i].x + 4, this.points[i].y + 4);
-              }
-              ctx.closePath();
-              ctx.fill();
+                   // ⚠️ 壁に衝突して跳ね返ることで向きが変わる（符号が変わる）可能性があるため、
+                   // 現在の進んでいる向き（方向ベクトル）を維持したまま、速度の「大きさ」を直線的に減少させます。
+                   const currentSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                   const originalSpeed = Math.sqrt(this.initVx * this.initVx + this.initVy * this.initVy);
 
-              // 2. 「砕け散ったかけら」本体の描画
-              ctx.beginPath();
-              ctx.moveTo(this.points[0].x, this.points[0].y);
-              for (let i = 1; i < this.points.length; i++) {
-                  ctx.lineTo(this.points[i].x, this.points[i].y);
-              }
-              ctx.closePath();
-              ctx.fillStyle = this.color + (this.isDragging ? "f0" : "d4"); // ドラッグ中は少し鮮やかに
-              ctx.fill();
+                   // 投げ飛ばされたときの初期速度から、直線的に目標の速さを計算
+                   const targetSpeed = originalSpeed * ratio;
 
-              ctx.lineWidth = this.isDragging ? 2.5 : 1.8;
-              ctx.strokeStyle = this.isDragging ? "rgba(255, 255, 255, 0.8)" : "rgba(255, 255, 255, 0.45)";
-              ctx.stroke();
+                   if (currentSpeed > 0.05 && targetSpeed > 0.05) {
+                       // 向きを保ったまま、スケールを再設定
+                       const scale = targetSpeed / currentSpeed;
+                       this.vx *= scale;
+                       this.vy *= scale;
+                   } else {
+                       this.vx = 0;
+                       this.vy = 0;
+                   }
 
-              // 3. テキスト描画
-              ctx.fillStyle = "#ffffff";
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              const fontBase = this.radius * 0.16;
+                   // 回転速度も同様に、直線的に 0 に向かって減速させる
+                   this.currentRotationSpeed = this.initSpin * ratio;
 
-              // タスク名
-              ctx.font = `bold ${Math.max(10, fontBase)}px sans-serif`;
-              let displayTitle = this.title;
-              const maxW = this.radius * 1.5;
-              if (ctx.measureText(displayTitle).width > maxW) {
-                  while (ctx.measureText(displayTitle + "...").width > maxW && displayTitle.length > 0) {
-                      displayTitle = displayTitle.slice(0, -1);
-                  }
-                  displayTitle += "...";
-              }
-              ctx.fillText(displayTitle, 0, -this.radius * 0.22);
+                   // 300フレーム（5秒）経過したら完全に速度・スピンを 0 にしてスリープ
+                   if (this.decelFrame === 0) {
+                       this.vx = 0;
+                       this.vy = 0;
+                       this.currentRotationSpeed = 0;
+                       this.isSleeping = true;
+                   }
+               }
 
-              // 破片を縦断するシャープなクラック（亀裂線）
-              ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-              ctx.lineWidth = 1;
-              ctx.beginPath();
-              ctx.moveTo(-this.radius * 0.6, -this.radius * 0.05);
-              ctx.lineTo(this.radius * 0.6, -this.radius * 0.05);
-              ctx.stroke();
+               // 座標と回転の適用
+               this.x += this.vx;
+               this.y += this.vy;
+               this.angle += this.currentRotationSpeed;
 
-              // タグ
-              ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
-              ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-              ctx.fillText(`🏷️: ${this.tag}`, 0, this.radius * 0.12);
+               // 画面端の跳ね返り
+               const boundR = this.radius;
+               if (this.x - boundR < 0) {
+                   this.x = boundR;
+                   this.vx *= -0.7; // 壁に当たっても反転後の向きを維持して等速直線減衰
+                   this.initVx *= -0.7; // 初期速度の基準も反転
+               } else if (this.x + boundR > width) {
+                   this.x = width - boundR;
+                   this.vx *= -0.7;
+                   this.initVx *= -0.7;
+               }
 
-              // 期限
-              ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
-              ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-              ctx.fillText(`📅: ${this.deadlineStr}`, 0, this.radius * 0.32);
+               if (this.y - boundR < 0) {
+                   this.y = boundR;
+                   this.vy *= -0.7;
+                   this.initVy *= -0.7;
+               } else if (this.y + boundR > height) {
+                   this.y = height - boundR;
+                   this.vy *= -0.7;
+                   this.initVy *= -0.7;
+               }
+           }
 
-              ctx.restore();
-          }
-      }
+           draw() {
+               // 画面外のものは描画スキップ
+               const margin = this.radius * 1.5;
+               if (this.x + margin < 0 || this.x - margin > width || this.y + margin < 0 || this.y - margin > height) {
+                   return;
+               }
 
+               ctx.save();
+               ctx.translate(this.x, this.y);
+               ctx.rotate(this.angle);
+
+               // ドラッグ中のハイライト用エフェクト
+               if (this.isDragging) {
+                   ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+                   ctx.beginPath();
+                   ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2);
+                   ctx.fill();
+               }
+
+               // 1. 擬似シャドウ
+               ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+               ctx.beginPath();
+               ctx.moveTo(this.points[0].x + 4, this.points[0].y + 4);
+               for (let i = 1; i < this.points.length; i++) {
+                   ctx.lineTo(this.points[i].x + 4, this.points[i].y + 4);
+               }
+               ctx.closePath();
+               ctx.fill();
+
+               // 2. 「砕け散ったかけら」本体の描画
+               ctx.beginPath();
+               ctx.moveTo(this.points[0].x, this.points[0].y);
+               for (let i = 1; i < this.points.length; i++) {
+                   ctx.lineTo(this.points[i].x, this.points[i].y);
+               }
+               ctx.closePath();
+               ctx.fillStyle = this.color + (this.isDragging ? "f0" : "d4");
+               ctx.fill();
+
+               ctx.lineWidth = this.isDragging ? 2.5 : 1.8;
+               ctx.strokeStyle = this.isDragging ? "rgba(255, 255, 255, 0.8)" : "rgba(255, 255, 255, 0.45)";
+               ctx.stroke();
+
+               // 3. テキスト描画
+               ctx.fillStyle = "#ffffff";
+               ctx.textAlign = "center";
+               ctx.textBaseline = "middle";
+               const fontBase = this.radius * 0.16;
+
+               // タスク名
+               ctx.font = `bold ${Math.max(10, fontBase)}px sans-serif`;
+               let displayTitle = this.title;
+               const maxW = this.radius * 1.5;
+               if (ctx.measureText(displayTitle).width > maxW) {
+                   while (ctx.measureText(displayTitle + "...").width > maxW && displayTitle.length > 0) {
+                       displayTitle = displayTitle.slice(0, -1);
+                   }
+                   displayTitle += "...";
+               }
+               ctx.fillText(displayTitle, 0, -this.radius * 0.22);
+
+               // クラック
+               ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+               ctx.lineWidth = 1;
+               ctx.beginPath();
+               ctx.moveTo(-this.radius * 0.6, -this.radius * 0.05);
+               ctx.lineTo(this.radius * 0.6, -this.radius * 0.05);
+               ctx.stroke();
+
+               // タグ
+               ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
+               ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+               ctx.fillText(`🏷️: ${this.tag}`, 0, this.radius * 0.12);
+
+               // 期限
+               ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
+               ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+               ctx.fillText(`📅: ${this.deadlineStr}`, 0, this.radius * 0.32);
+
+               ctx.restore();
+           }
+       }
       const fragments = [];
       completedTasks.forEach(task => {
           fragments.push(new Fragment(task));
