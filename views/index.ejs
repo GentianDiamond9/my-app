@@ -1,185 +1,838 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8"><title>TreeMap Tasks Ultimate</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TreeMap Tasks Ultimate PRO</title>
     <style>
-        /* --- スタイル継承 & 追加 --- */
-        :root { --bg: #f8f9fa; --card: #ffffff; --text: #212529; --primary: #4f46e5; --danger: #ef4444; }
-        [data-theme="dark"] { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .main-container { display: grid; grid-template-columns: 1fr; gap: 24px; }
-        @media(min-width: 768px) { .main-container { grid-template-columns: 1fr 1.5fr; } }
-        .card { background: var(--card); border: 1px solid #dee2e6; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-        .treemap-wrapper { width: 100%; height: 500px; background: #eee; border-radius: 8px; position: relative; overflow: hidden; }
-        .treemap-node { position: absolute; box-sizing: border-box; border: 2px solid var(--card); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; cursor: pointer; transition: transform 0.2s; text-shadow: 1px 1px 3px rgba(0,0,0,0.7); overflow: hidden; }
-        
-        /* 弾け飛ぶパーティクルのスタイル */
-        .particle { position: fixed; pointer-events: none; z-index: 9999; border-radius: 2px; animation: fly 0.8s ease-out forwards; }
-        @keyframes fly {
-            to { transform: translate(var(--dx), var(--dy)) rotate(360deg); opacity: 0; }
+        /* --- 1. グローバルスタイル & カラーパレットのモダン化 --- */
+        :root {
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --text: #1f2937;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --default-node: #64748b;
         }
 
-        .tag-history-item { cursor: pointer; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; border: 1px solid #ddd; margin: 2px; display: inline-block; }
-        input, select { margin-bottom: 8px; padding: 8px; border-radius: 6px; border: 1px solid #ddd; }
+        [data-theme="dark"] {
+            --bg: #0b0f19;
+            --card: #151f32;
+            --text: #f9fafb;
+            --text-muted: #9ca3af;
+            --border: #243049;
+            --default-node: #475569;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            transition: background 0.3s, color 0.3s;
+            line-height: 1.5;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .theme-toggle-btn {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 10px 20px;
+            border-radius: 9999px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+        .theme-toggle-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* --- 2. グリッドレイアウト --- */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 28px;
+        }
+        @media(min-width: 992px) {
+            .main-container { grid-template-columns: 1fr 1.3fr; }
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.02);
+            transition: background 0.3s, border 0.3s;
+        }
+
+        .card h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* --- 3. タスクリストのデザイン向上 --- */
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+        .task-item:last-child { border-bottom: none; }
+        
+        .task-info { display: flex; flex-direction: column; gap: 4px; }
+        .completed { text-decoration: line-through; color: var(--text-muted); opacity: 0.6; }
+        .deadline-text { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+        .overdue-alert { color: var(--danger) !important; font-weight: bold; }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-danger { background: var(--danger); color: white; margin-left: 8px; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-right: 6px;
+            color: white;
+        }
+        .badge-3 { background: var(--danger); }
+        .badge-2 { background: var(--warning); }
+        .badge-1 { background: var(--primary); }
+
+        .tag-badge {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            border-radius: 9999px;
+            margin-left: 6px;
+        }
+
+        .color-dot {
+            display: inline-block;
+            width: 100%;
+            height: 4px;
+            border-radius: 9999px;
+            margin-top: 6px;
+        }
+
+        /* --- 4. タグ履歴システム --- */
+        .tag-history-wrapper { margin-bottom: 14px; }
+        .tag-history-item {
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            border: 1px solid var(--border);
+            margin: 4px;
+            display: inline-block;
+            background: var(--bg);
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .tag-history-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        /* --- 5. フォームデザイン --- */
+        form { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-row { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+        input, select {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+        input[type="color"] { padding: 4px; height: 42px; width: 100%; cursor: pointer; }
+        .btn-primary { background: var(--primary); color: white; padding: 12px; font-weight: bold; border-radius: 8px; }
+
+        /* --- 6. 株式市場風 Squarified Treemap ビジュアル --- */
+        .treemap-wrapper {
+            width: 100%;
+            height: 520px;
+            background: var(--bg);
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .treemap-node {
+            position: absolute;
+            box-sizing: border-box;
+            border: 2px solid var(--card);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .treemap-node:hover {
+            filter: brightness(1.15);
+            box-shadow: inset 0 0 0 3px rgba(255,255,255,0.4);
+            z-index: 10;
+        }
+
+        .node-title { font-weight: 700; width: 100%; overflow: hidden; text-overflow: ellipsis; }
+        .node-size { opacity: 0.9; width: 100%; margin-top: 4px; font-weight: 500; }
+
+        .detail-overlay {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
+            background: rgba(15, 23, 42, 0.95);
+            color: #ffffff;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            font-size: 0.9rem;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.4);
+            pointer-events: none;
+        }
+
+        /* --- 7. 達成率ダッシュボード --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            text-align: center;
+        }
+        .stat-box {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 16px;
+            border-radius: 12px;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin: 8px 0;
+        }
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 9999px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 9999px;
+            width: 0%;
+            transition: width 1s ease-out;
+        }
+
+        /* --- 8. 物理スパークパーティクル --- */
+        .sparkle-particle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            border-radius: 50%;
+            mix-blend-mode: screen;
+        }
     </style>
 </head>
 <body>
-    <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h1>TreeMap Ultimate 🚀</h1>
-        <button id="themeToggle">🌓 テーマ切り替え</button>
+
+    <header>
+        <h1>TreeMap Ultimate PRO 🚀</h1>
+        <button class="theme-toggle-btn" id="themeToggle">🌓 テーマ切り替え</button>
     </header>
 
     <div class="main-container">
-        <div class="left-col">
+        <div style="display: flex; flex-direction: column; gap: 28px;">
             <div class="card">
-                <h2>タスク管理</h2>
+                <h2>📋 タスクの一覧</h2>
                 <div id="taskList">
-                    <% tasks.forEach(task => { %>
-                        <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
-                            <div class="<%= task.is_completed ? 'completed' : '' %>">
-                                <strong><%= task.title %></strong>
-                                <% if(task.tag) { %><span style="font-size:0.7rem; background:#eee; padding:2px 6px; border-radius:10px; color:#333; margin-left:5px;">🏷️ <%= task.tag %></span><% } %>
-                                <div style="font-size:0.7rem; color:gray;">⏳ <%= new Date(task.deadline).toLocaleString() %></div>
+                    <% if (tasks.length === 0) { %>
+                        <p style="color: var(--text-muted);">タスクはまだありません。</p>
+                    <% } %>
+                    <% 
+                        const existingTags = [...new Set(tasks.map(t => t.tag).filter(Boolean))];
+                        tasks.forEach(task => { 
+                            const labels = {3: '高', 2: '中', 1: '低'};
+                            const isOverdue = !task.is_completed && (new Date() > new Date(task.deadline));
+                    %>
+                        <div class="task-item" id="task-<%= task.id %>">
+                            <div class="task-info">
+                                <span class="<%= task.is_completed ? 'completed' : '' %>" id="title-<%= task.id %>">
+                                    <span class="badge badge-<%= task.importance %>">重要度: <%= labels[task.importance] %></span>
+                                    <strong><%= task.title %></strong>
+                                    <% if (task.tag) { %>
+                                        <span class="tag-badge">🏷️ <%= task.tag %></span>
+                                    <% } %>
+                                </span>
+                                <span class="deadline-text <%= isOverdue ? 'overdue-alert' : '' %>" id="deadline-<%= task.id %>">
+                                    <%= isOverdue ? '🚨 期限超過: ' : '⏳ 期限: ' %> <%= new Date(task.deadline).toLocaleString() %>
+                                </span>
+                                <% if (task.color) { %>
+                                    <span class="color-dot" id="dot-<%= task.id %>" style="background-color: <%= task.color %>;"></span>
+                                <% } %>
                             </div>
-                            <div>
-                                <button class="toggle-btn" data-id="<%= task.id %>" data-status="<%= !task.is_completed %>" data-importance="<%= task.importance %>">
-                                    <%= task.is_completed ? '戻す' : '完了' %>
-                                </button>
-                                <button class="delete-btn" data-id="<%= task.id %>" style="color:red;">削除</button>
+                            <div id="actions-<%= task.id %>">
+                                <% if (task.is_completed) { %>
+                                    <button class="btn btn-warning toggle-btn" data-id="<%= task.id %>" data-status="false">戻す</button>
+                                <% } else { %>
+                                    <button class="btn btn-success toggle-btn" data-id="<%= task.id %>" data-status="true">完了</button>
+                                <% } %>
+                                <button class="btn btn-danger delete-btn" data-id="<%= task.id %>">削除</button>
                             </div>
                         </div>
                     <% }) %>
                 </div>
-
-                <form action="/tasks" method="POST" style="display:flex; flex-direction:column; margin-top:20px;">
-                    <input type="text" name="title" placeholder="タスク名" required>
-                    <input type="datetime-local" name="deadline" required>
-                    <select name="importance">
-                        <option value="3">重要度: 高</option><option value="2">重要度: 中</option><option value="1">重要度: 低</option>
-                    </select>
-                    <div id="tagHistory" style="margin-bottom:8px;">
-                        <!-- JSで最近のタグを表示 -->
-                    </div>
-                    <div style="display:flex; gap:10px;">
-                        <input type="text" id="tagInput" name="tag" placeholder="タグ" style="flex:2;">
-                        <input type="color" id="colorInput" name="color" value="#4f46e5" style="flex:1; height:40px;">
-                    </div>
-                    <button type="submit" style="background:#4f46e5; color:white; font-weight:bold; cursor:pointer;">追加</button>
-                </form>
             </div>
 
             <div class="card">
-                <h2>達成率</h2>
-                <div style="display:flex; justify-content:space-around; text-align:center;">
-                    <div>週: <%= stats.weekRate %>%</div><div>月: <%= stats.monthRate %>%</div>
+                <h2>📈 期限内達成率</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">過去 1週間</div>
+                        <div class="stat-value" id="weekRateVal">--%</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="weekRateBar"></div>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">過去 1ヶ月</div>
+                        <div class="stat-value" id="monthRateVal">--%</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="monthRateBar"></div>
+                        </div>
+                    </div>
                 </div>
+            </div>
+
+            <div class="card">
+                <h3>新しいタスクを追加</h3>
+                <form action="/tasks" method="POST">
+                    <div class="form-group">
+                        <label>タイトル</label>
+                        <input type="text" name="title" required placeholder="例: システム要件定義書の作成">
+                    </div>
+                    <div class="form-group">
+                        <label>期限 (分単位まで設定可能)</label>
+                        <input type="datetime-local" name="deadline" required id="defaultDeadline">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>タグ（手入力 / 履歴選択）</label>
+                            <input type="text" name="tag" placeholder="例: 仕事, 研究" id="tagInput" list="tagSuggestions" autocomplete="off">
+                            <datalist id="tagSuggestions">
+                                <% existingTags.forEach(tag => { %>
+                                    <option value="<%= tag %>"></option>
+                                <% }) %>
+                            </datalist>
+                        </div>
+                        <div class="form-group">
+                            <label>カスタム色</label>
+                            <input type="color" name="color" id="colorInput" value="#64748b">
+                        </div>
+                    </div>
+
+                    <div class="tag-history-wrapper">
+                        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">最近使ったタグ:</label>
+                        <div id="tagHistory"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>重要度</label>
+                        <select name="importance">
+                            <option value="1">低</option>
+                            <option value="2">中</option>
+                            <option value="3">高</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">タスク作成</button>
+                </form>
             </div>
         </div>
 
-        <div class="right-col">
-            <div class="card">
-                <h2>重要度マップ</h2>
-                <div id="treemap" class="treemap-wrapper"></div>
-            </div>
+        <div class="card" style="display: flex; flex-direction: column; position: relative;">
+            <h2>📊 重要度マップ</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;" id="mapDescription">
+                優先度が高いタスクほど大きく表示されます！
+            </p>
+            <div class="treemap-wrapper" id="treemapContainer"></div>
+            <div class="detail-overlay" id="detailOverlay"></div>
         </div>
     </div>
 
     <script>
-        const tasks = <%- JSON.stringify(tasks) %>;
-        const container = document.getElementById('treemap');
+        let allTasks = <%- JSON.stringify(tasks) %>;
 
-        // タグ履歴の生成
-        const tagHistory = document.getElementById('tagHistory');
-        const uniqueTags = [];
-        tasks.forEach(t => {
-            if(t.tag && !uniqueTags.find(x => x.tag === t.tag)) uniqueTags.push({tag: t.tag, color: t.color});
+        // 初期ロード処理
+        window.addEventListener('load', () => {
+            const now = new Date();
+            // 分単位で初期化するために分数を繰り上げ
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('defaultDeadline').value = now.toISOString().slice(0, 16);
+            
+            buildTagHistory();
+            calculateRates();
+            renderTreemap();
         });
-        uniqueTags.slice(-5).forEach(item => {
-            const span = document.createElement('span');
-            span.className = 'tag-history-item';
-            span.style.borderColor = item.color;
-            span.innerText = item.tag;
-            span.onclick = () => {
-                document.getElementById('tagInput').value = item.tag;
-                document.getElementById('colorInput').value = item.color || '#4f46e5';
+
+        // A. テーマ切り替え
+        const themeToggle = document.getElementById('themeToggle');
+        if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            if (currentTheme === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+
+        // B. タグ履歴の構築
+        function buildTagHistory() {
+            const tagHistoryContainer = document.getElementById('tagHistory');
+            tagHistoryContainer.innerHTML = '';
+            const uniqueTags = [];
+            allTasks.forEach(t => {
+                if (t.tag && !uniqueTags.find(x => x.tag === t.tag)) {
+                    uniqueTags.push({ tag: t.tag, color: t.color });
+                }
+            });
+
+            uniqueTags.slice(-6).forEach(item => {
+                const span = document.createElement('span');
+                span.className = 'tag-history-item';
+                span.style.borderColor = item.color || 'var(--border)';
+                span.innerText = item.tag;
+                span.onclick = () => {
+                    document.getElementById('tagInput').value = item.tag;
+                    document.getElementById('colorInput').value = item.color || '#64748b';
+                };
+                tagHistoryContainer.appendChild(span);
+            });
+        }
+
+        // C. プログレスバー・達成率の計算ロジック
+        function calculateRates() {
+            const now = new Date();
+            const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+            // 1週間以内・1ヶ月以内に「完了時刻」または「期限」があったタスクをフィルタリング
+            const weekTasks = allTasks.filter(t => {
+                const date = t.completed_at ? new Date(t.completed_at) : new Date(t.deadline);
+                return date >= oneWeekAgo;
+            });
+
+            const monthTasks = allTasks.filter(t => {
+                const date = t.completed_at ? new Date(t.completed_at) : new Date(t.deadline);
+                return date >= oneMonthAgo;
+            });
+
+            const getRate = (taskList) => {
+                const completed = taskList.filter(t => t.is_completed);
+                if (completed.length === 0) return 0;
+                // 期限内（完了日付 ≦ 期限日付）に達成できたタスク
+                const inTimeTasks = completed.filter(t => {
+                    if (!t.completed_at) return false;
+                    return new Date(t.completed_at) <= new Date(t.deadline);
+                });
+                return Math.round((inTimeTasks.length / completed.length) * 100);
             };
-            tagHistory.appendChild(span);
+
+            const weekRate = getRate(weekTasks);
+            const monthRate = getRate(monthTasks);
+
+            // UI反映
+            document.getElementById('weekRateVal').innerText = `${weekRate}%`;
+            document.getElementById('weekRateBar').style.width = `${weekRate}%`;
+            document.getElementById('monthRateVal').innerText = `${monthRate}%`;
+            document.getElementById('monthRateBar').style.width = `${monthRate}%`;
+        }
+
+        // D. イベント一括処理
+        document.getElementById('taskList').addEventListener('click', async (e) => {
+            if (e.target.classList.contains('toggle-btn')) {
+                const id = Number(e.target.getAttribute('data-id'));
+                const targetStatus = e.target.getAttribute('data-status') === 'true';
+                await toggleTaskStatus(id, targetStatus, e);
+            }
+            if (e.target.classList.contains('delete-btn')) {
+                const id = Number(e.target.getAttribute('data-id'));
+                await deleteTask(id);
+            }
         });
+
+        // 🎇 進化版フィジカル粒子スパーク演出
+        function triggerAdvancedSparkles(x, y, baseColor) {
+            const particleCount = 45;
+            const colors = [baseColor, '#ffffff', '#ffd700']; // ゴールド、ホワイト、個別色をブレンド
+            
+            for (let i = 0; i < particleCount; i++) {
+                const p = document.createElement('div');
+                p.className = 'sparkle-particle';
+                
+                const size = Math.random() * 8 + 4;
+                p.style.width = `${size}px`;
+                p.style.height = `${size}px`;
+                p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                
+                // 初速と角度
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 8 + 3;
+                let vx = Math.cos(angle) * speed;
+                let vy = Math.sin(angle) * speed;
+                
+                p.style.left = `${x}px`;
+                p.style.top = `${y}px`;
+                document.body.appendChild(p);
+
+                let posX = x;
+                let posY = y;
+                let opacity = 1;
+                const gravity = 0.22; // 下方向への重力
+
+                const animate = () => {
+                    if (opacity <= 0.02) {
+                        p.remove();
+                        return;
+                    }
+                    vy += gravity; // 重力加速度の適用
+                    posX += vx;
+                    posY += vy;
+                    opacity -= 0.015; // 徐々にフェードアウト
+
+                    p.style.left = `${posX}px`;
+                    p.style.top = `${posY}px`;
+                    p.style.opacity = opacity;
+                    p.style.transform = `scale(${opacity})`;
+
+                    requestAnimationFrame(animate);
+                };
+                requestAnimationFrame(animate);
+            }
+        }
+
+        async function toggleTaskStatus(id, targetStatus, event) {
+            try {
+                const response = await fetch(`/tasks/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_completed: targetStatus })
+                });
+                
+                if (response.ok) {
+                    const resData = await response.json();
+                    
+                    // タスクが完了し、かつ重要度が2(中)以上の場合にスパークをトリガー
+                    if (targetStatus === true) {
+                        const originalTask = allTasks.find(t => t.id === id);
+                        if (originalTask && originalTask.importance >= 2) {
+                            const rect = event.target.getBoundingClientRect();
+                            const nodeColor = originalTask.color && originalTask.color !== '#64748b' ? originalTask.color : 'var(--default-node-color)';
+                            triggerAdvancedSparkles(rect.left + window.scrollX, rect.top + window.scrollY, nodeColor);
+                        }
+                    }
+
+                    // フロントエンド内のメモリ状態を同期
+                    allTasks = allTasks.map(t => t.id === id ? { 
+                        ...t, 
+                        is_completed: targetStatus,
+                        completed_at: resData.completed_at 
+                    } : t);
+
+                    // DOM要素書き換え
+                    const titleEl = document.getElementById(`title-${id}`);
+                    const actionsContainer = document.getElementById(`actions-${id}`);
+                    
+                    if (targetStatus === true) {
+                        titleEl.classList.add('completed');
+                        actionsContainer.innerHTML = `
+                            <button class="btn btn-warning toggle-btn" data-id="${id}" data-status="false">戻す</button>
+                            <button class="btn btn-danger delete-btn" data-id="${id}">削除</button>
+                        `;
+                    } else {
+                        titleEl.classList.remove('completed');
+                        actionsContainer.innerHTML = `
+                            <button class="btn btn-success toggle-btn" data-id="${id}" data-status="true">完了</button>
+                            <button class="btn btn-danger delete-btn" data-id="${id}">削除</button>
+                        `;
+                    }
+
+                    buildTagHistory();
+                    calculateRates();
+                    renderTreemap();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function deleteTask(id) {
+            if (!confirm("削除しますか？")) return;
+            try {
+                const response = await fetch(`/tasks/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    document.getElementById(`task-${id}`).remove();
+                    allTasks = allTasks.filter(t => t.id !== id);
+                    calculateRates();
+                    renderTreemap();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // 📈 E. プロ仕様 Squarified Treemap（正方形に近い四角形に切り分けるアルゴリズム）
+        function squarify(nodes, containerWidth, containerHeight) {
+            const result = [];
+            if (nodes.length === 0) return result;
+
+            // 面積（ウェイト値）の総和
+            const totalWeight = nodes.reduce((sum, n) => sum + n.weight, 0);
+            const totalArea = containerWidth * containerHeight;
+
+            // 各タスクにピクセル基準の実面積（面積比率）を割り振る
+            const mappedNodes = nodes.map(n => ({
+                ...n,
+                area: (n.weight / totalWeight) * totalArea
+            })).sort((a, b) => b.area - a.area);
+
+            // アスペクト比を最適化するためのSquarify補助ロジック
+            function layoutRow(row, width, vertical, x, y) {
+                const sumArea = row.reduce((s, n) => s + n.area, 0);
+                const height = sumArea / width;
+                let offset = 0;
+
+                row.forEach(node => {
+                    const length = node.area / height;
+                    if (vertical) {
+                        result.push({
+                            ...node,
+                            x: x + offset,
+                            y: y,
+                            w: length,
+                            h: height
+                        });
+                    } else {
+                        result.push({
+                            ...node,
+                            x: x,
+                            y: y + offset,
+                            w: height,
+                            h: length
+                        });
+                    }
+                    offset += length;
+                });
+            }
+
+            function worstRatio(row, width) {
+                if (row.length === 0) return Infinity;
+                const sumArea = row.reduce((s, n) => s + n.area, 0);
+                const minArea = Math.min(...row.map(n => n.area));
+                const maxArea = Math.max(...row.map(n => n.area));
+                return Math.max(
+                    (width * width * maxArea) / (sumArea * sumArea),
+                    (sumArea * sumArea) / (width * width * minArea)
+                );
+            }
+
+            let x = 0, y = 0;
+            let width = containerWidth, height = containerHeight;
+            let row = [];
+            let list = [...mappedNodes];
+
+            while (list.length > 0) {
+                const node = list[0];
+                const side = Math.min(width, height);
+                const nextRow = [...row, node];
+
+                if (worstRatio(nextRow, side) <= worstRatio(row, side)) {
+                    row.push(node);
+                    list.shift();
+                } else {
+                    const vertical = width >= height;
+                    layoutRow(row, side, vertical, x, y);
+                    if (vertical) {
+                        x += row.reduce((s, n) => s + n.area, 0) / height;
+                        width -= row.reduce((s, n) => s + n.area, 0) / height;
+                    } else {
+                        y += row.reduce((s, n) => s + n.area, 0) / width;
+                        height -= row.reduce((s, n) => s + n.area, 0) / width;
+                    }
+                    row = [];
+                }
+            }
+            if (row.length > 0) {
+                layoutRow(row, Math.min(width, height), width >= height, x, y);
+            }
+            return result;
+        }
 
         function renderTreemap() {
+            const container = document.getElementById('treemapContainer');
+            const overlay = document.getElementById('detailOverlay');
             container.innerHTML = '';
-            const pending = tasks.filter(t => !t.is_completed);
-            const now = new Date();
-            const nodes = pending.map(t => {
-                const overdueDays = Math.max(0, (now - new Date(t.deadline)) / (1000*60*60*24));
-                const value = t.importance * (1 + overdueDays);
-                return { ...t, value };
-            });
-            const total = nodes.reduce((s, n) => s + n.value, 0);
-            let curX = 0;
-            nodes.forEach(n => {
-                const w = (n.value / total) * container.offsetWidth;
-                const div = document.createElement('div');
-                div.className = 'treemap-node';
-                div.id = `node-${n.id}`;
-                div.style.left = `${curX}px`; div.style.width = `${w}px`; div.style.height = '100%';
-                div.style.backgroundColor = n.color || '#4f46e5';
-                
-                // 面積に応じたフォントサイズ計算
-                const fontSize = Math.max(10, Math.min(w / 10, 24));
-                div.innerHTML = `
-                    <div style="font-weight:bold; font-size:${fontSize}px;">${n.title}</div>
-                    <div style="font-size:${fontSize*0.6}px;">${new Date(n.deadline).toLocaleDateString()}</div>
-                `;
-                container.appendChild(div);
-                curX += w;
-            });
-        }
-
-        // 弾け飛ぶ演出
-        function createBurst(x, y, color) {
-            for (let i = 0; i < 30; i++) {
-                const p = document.createElement('div');
-                p.className = 'particle';
-                p.style.left = x + 'px'; p.style.top = y + 'px';
-                p.style.width = Math.random() * 10 + 5 + 'px';
-                p.style.height = p.style.width;
-                p.style.background = color;
-                p.style.setProperty('--dx', (Math.random() - 0.5) * 400 + 'px');
-                p.style.setProperty('--dy', (Math.random() - 0.5) * 400 + 'px');
-                document.body.appendChild(p);
-                setTimeout(() => p.remove(), 1000);
+            
+            const activeTasks = allTasks.filter(t => !t.is_completed);
+            if (activeTasks.length === 0) {
+                container.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted);">🎉 すべてのタスクを完了しました！素晴らしいです！</div>';
+                overlay.style.display = 'none';
+                return;
             }
-        }
 
-        document.addEventListener('click', async (e) => {
-            const btn = e.target;
-            const id = btn.dataset.id;
-            if (btn.classList.contains('toggle-btn')) {
-                const is_completed = btn.dataset.status === 'true';
-                const importance = parseInt(btn.dataset.importance);
+            const now = new Date();
+            const labels = {3: '高', 2: '中', 1: '低'};
 
-                if (!is_completed && !confirm('完了したタスクを復活させますか？')) return;
-
-                if (is_completed && importance >= 2) {
-                    const node = document.getElementById(`node-${id}`);
-                    if (node) {
-                        const rect = node.getBoundingClientRect();
-                        createBurst(rect.left + rect.width/2, rect.top + rect.height/2, node.style.backgroundColor);
-                    }
+            // 期限超過タスクのウェイトを、超過時間に比例して拡大する計算ロジック
+            const scoredTasks = activeTasks.map(task => {
+                const deadline = new Date(task.deadline);
+                const diffTime = deadline.getTime() - now.getTime();
+                
+                let weight = 0;
+                
+                if (diffTime < 0) {
+                    // 【期限超過時】
+                    // 1日 ＝ 86400000 ミリ秒
+                    const overdueMs = Math.abs(diffTime);
+                    const overdueDaysFraction = overdueMs / (1000 * 60 * 60 * 24);
+                    // 期限ぴったりで1倍、1日超過で2倍、2日超過で3倍になる比例数式
+                    const penaltyFactor = 1 + overdueDaysFraction;
+                    weight = Math.pow(task.importance, 2) * penaltyFactor;
+                } else {
+                    // 【期限内】
+                    // 残り時間を分数基準に変換し、安全率（0.5日以下を0.5とする）を適用
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    const daysDivisor = diffDays <= 0 ? 0.5 : diffDays;
+                    weight = Math.pow(task.importance, 2) / daysDivisor;
                 }
 
-                await fetch(`/tasks/${id}`, {
-                    method: 'PATCH', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ is_completed })
-                }).finally(() => setTimeout(() => location.href = "/", 500));
-            }
-            if (btn.classList.contains('delete-btn')) {
-                if(confirm('削除しますか？')) await fetch(`/tasks/${id}`, { method: 'DELETE' }).finally(() => location.href = "/");
-            }
-        });
+                return { ...task, weight, diffTime };
+            });
 
-        window.onload = renderTreemap;
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+
+            // プロ仕様正方形分割のレイアウト配列を生成
+            const layoutedNodes = squarify(scoredTasks, containerWidth, containerHeight);
+
+            layoutedNodes.forEach(layout => {
+                const node = document.createElement('div');
+                node.className = 'treemap-node';
+                
+                // 色が明示的に設定されていればその色、なければデフォルトの灰色
+                if (layout.color && layout.color !== '#64748b') {
+                    node.style.backgroundColor = layout.color;
+                } else {
+                    node.style.backgroundColor = 'var(--default-node-color)';
+                }
+
+                node.style.left = `${layout.x}px`;
+                node.style.top = `${layout.y}px`;
+                node.style.width = `${layout.w}px`;
+                node.style.height = `${layout.h}px`;
+
+                // 面積による動的な文字スケーリング
+                const area = layout.w * layout.h;
+                let fontSize = 0.8;
+                if (area > 40000) fontSize = 1.25;
+                else if (area > 20000) fontSize = 1.05;
+                else if (area < 8000) fontSize = 0.65;
+
+                node.style.fontSize = `${fontSize}rem`;
+
+                let timeStatusText = "";
+                if (layout.diffTime < 0) {
+                    const days = Math.abs(layout.diffTime) / (1000 * 60 * 60 * 24);
+                    timeStatusText = `🚨 超過: ${days.toFixed(1)}日`;
+                } else {
+                    const days = Math.ceil(layout.diffTime / (1000 * 60 * 60 * 24));
+                    timeStatusText = `⏳ 残り: ${days}日`;
+                }
+
+                let tagText = layout.tag ? ` [${layout.tag}]` : '';
+
+                node.innerHTML = `
+                    <div class="node-title">${layout.title}${tagText}</div>
+                    <div class="node-size" style="font-size: ${fontSize * 0.8}rem;">${timeStatusText}</div>
+                `;
+
+                // 詳細オーバーレイ（ホバー）
+                node.addEventListener('mouseenter', () => {
+                    overlay.innerHTML = `
+                        <strong>🗂 タスク名:</strong> ${layout.title}<br>
+                        <strong>🏷️ タグ:</strong> ${layout.tag || 'なし'} | 
+                        <strong>🚨 重要度:</strong> ${labels[layout.importance]} | 
+                        <strong>📅 期限:</strong> ${new Date(layout.deadline).toLocaleString()}<br>
+                        <strong>⚠️ ステータス:</strong> ${layout.diffTime < 0 ? '期限超過' : '処理中'} (${timeStatusText})<br>
+                        <strong>📐 拡大ウエイト:</strong> ${layout.weight.toFixed(2)}
+                    `;
+                    overlay.style.display = 'block';
+                });
+
+                node.addEventListener('mouseleave', () => {
+                    overlay.style.display = 'none';
+                });
+
+                container.appendChild(node);
+            });
+        }
+
+        // リサイズ時の再計算をデバウンスなしで追従
         window.onresize = renderTreemap;
     </script>
 </body>
