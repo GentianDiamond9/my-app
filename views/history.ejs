@@ -109,254 +109,244 @@
       </footer>
     </div>
     <script>
-      const completedTasks = <%- JSON.stringify(tasks) %>;
+       const completedTasks = <%- JSON.stringify(tasks) %>;
 
-      // テーマ切り替え
-      if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-      document.getElementById('themeToggle').addEventListener('click', () => {
-          const currentTheme = document.documentElement.getAttribute('data-theme');
-          if (currentTheme === 'dark') {
-              document.documentElement.removeAttribute('data-theme');
-              localStorage.setItem('theme', 'light');
-          } else {
-              document.documentElement.setAttribute('data-theme', 'dark');
-              localStorage.setItem('theme', 'dark');
-          }
-      });
+       // テーマ切り替え
+       if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+       document.getElementById('themeToggle').addEventListener('click', () => {
+           const currentTheme = document.documentElement.getAttribute('data-theme');
+           if (currentTheme === 'dark') {
+               document.documentElement.removeAttribute('data-theme');
+               localStorage.setItem('theme', 'light');
+           } else {
+               document.documentElement.setAttribute('data-theme', 'dark');
+               localStorage.setItem('theme', 'dark');
+           }
+       });
 
-      const canvas = document.getElementById('historyCanvas');
-      const ctx = canvas.getContext('2d');
-      let width = canvas.width = window.innerWidth;
-      let height = canvas.height = window.innerHeight;
-      window.addEventListener('resize', () => {
-          width = canvas.width = window.innerWidth;
-          height = canvas.height = window.innerHeight;
-      });
+       const canvas = document.getElementById('historyCanvas');
+       const ctx = canvas.getContext('2d');
+       let width = canvas.width = window.innerWidth;
+       let height = canvas.height = window.innerHeight;
+       window.addEventListener('resize', () => {
+           width = canvas.width = window.innerWidth;
+           height = canvas.height = window.innerHeight;
+       });
 
-      // マウス位置 (初期位置は衝突しないよう画面外)
-      const mouse = { x: -1000, y: -1000, radius: 200 };
-      window.addEventListener('mousemove', (e) => {
-          mouse.x = e.clientX;
-          mouse.y = e.clientY;
-      });
-      window.addEventListener('mouseleave', () => {
-          mouse.x = -1000;
-          mouse.y = -1000;
-      });
+       // マウス位置 (初期位置は衝突しないよう画面外)
+       const mouse = { x: -1000, y: -1000, radius: 200 };
+       window.addEventListener('mousemove', (e) => {
+           mouse.x = e.clientX;
+           mouse.y = e.clientY;
+       });
+       window.addEventListener('mouseleave', () => {
+           mouse.x = -1000;
+           mouse.y = -1000;
+       });
 
-      // 🔥 【対策A】Intlを用いた日本時間タイムゾーンでの日付取得
-      function formatToJST(dateString) {
-          if (!dateString) return "-";
-          const d = new Date(dateString);
-          const formatter = new Intl.DateTimeFormat('ja-JP', {
-              timeZone: 'Asia/Tokyo',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit'
-          });
-          return formatter.format(d);
-      }
+       // 🔥 【対策A】Intlを用いた日本時間タイムゾーンでの日付取得
+       function formatToJST(dateString) {
+           if (!dateString) return "-";
+           const d = new Date(dateString);
+           const formatter = new Intl.DateTimeFormat('ja-JP', {
+               timeZone: 'Asia/Tokyo',
+               year: 'numeric',
+               month: '2-digit',
+               day: '2-digit'
+           });
+           return formatter.format(d);
+       }
 
       // 破片 (Fragment) クラス
-      class Fragment {
-          constructor(task) {
-              this.title = task.title;
-              this.tag = task.tag || "なし";
-              this.deadline = new Date(task.deadline);
-              this.deadlineStr = formatToJST(task.deadline); // 日本時間同期
-              this.color = task.color || "#6366f1";
-              this.importance = Number(task.importance) || 1;
+       class Fragment {
+           constructor(task) {
+               this.title = task.title;
+               this.tag = task.tag || "なし";
+               this.deadline = new Date(task.deadline);
+               this.deadlineStr = this.deadline.toLocaleDateString();
+               this.color = task.color || "#6366f1";
+               this.importance = Number(task.importance) || 1; // 1, 2, 3 のいずれか
 
-              // 画面全体にランダムに配置
-              this.x = Math.random() * (width - 300) + 150;
-              this.y = Math.random() * (height - 300) + 150;
+               // 初期配置は画面全体にランダム
+               this.x = Math.random() * (width - 300) + 150;
+               this.y = Math.random() * (height - 300) + 150;
 
-              // 重要度の面積比例
-              const baseRadius = 60;
-              const scaleFactor = Math.sqrt(this.importance);
-              this.radius = baseRadius * scaleFactor;
+               // 📐 【重要度の面積比例システム】
+               const baseRadius = 60;
+               const scaleFactor = Math.sqrt(this.importance);
+               this.radius = baseRadius * scaleFactor;
 
-              this.sizeW = this.radius * 2 * 1.1;
-              this.sizeH = this.radius * 2 * 0.85;
+               // 横幅と縦幅
+               this.sizeW = this.radius * 2 * 1.1;
+               this.sizeH = this.radius * 2 * 0.85;
 
-              // 多角形頂点
-              this.vertices = [];
-              const numPoints = 6 + Math.floor(Math.random() * 3);
-              for (let i = 0; i < numPoints; i++) {
-                  const angle = (i / numPoints) * Math.PI * 2;
-                  const offsetRadius = 0.8 + Math.random() * 0.3;
-                  this.vertices.push({
-                      x: Math.cos(angle) * (this.sizeW / 2) * offsetRadius,
-                      y: Math.sin(angle) * (this.sizeH / 2) * offsetRadius
-                  });
-              }
+               // 速度
+               const moveAngle = Math.random() * Math.PI * 2;
+               const speed = 0.3 + Math.random() * 0.5;
+               this.vx = Math.cos(moveAngle) * speed;
+               this.vy = Math.sin(moveAngle) * speed;
+               this.origVx = this.vx;
+               this.origVy = this.vy;
 
-              // 回転初期化
-              this.angle = Math.random() * Math.PI * 2;
-              this.vx = 0;
-              this.vy = 0;
-              this.currentRotationSpeed = 0;
+               // 回転角度
+               this.angle = Math.random() * Math.PI * 2;
+               // 経過時間によるベース回転速度の算出
+               const now = new Date();
+               const diffTimeMs = Math.max(1, now.getTime() - this.deadline.getTime());
+               const daysOld = diffTimeMs / (1000 * 60 * 60 * 24);
+               this.baseRotationSpeed = Math.max(0.001, 0.012 / (1 + (daysOld / 20)));
+               if (Math.random() > 0.5) this.baseRotationSpeed *= -1;
 
-              // 文字列幅の事前パース（ボトルネック解消）
-              const fontBase = this.radius * 0.16;
-              ctx.font = `bold ${Math.max(10, fontBase)}px sans-serif`;
-              const maxW = this.sizeW * 0.75;
-              let displayTitle = this.title;
-              if (ctx.measureText(displayTitle).width > maxW) {
-                  while (ctx.measureText(displayTitle + "...").width > maxW && displayTitle.length > 0) {
-                      displayTitle = displayTitle.slice(0, -1);
-                  }
-                  displayTitle += "...";
-              }
-              this.displayTitle = displayTitle;
-          }
+               this.currentRotationSpeed = this.baseRotationSpeed;
+           }
 
-          update() {
-              const dx = this.x - mouse.x;
-              const dy = this.y - mouse.y;
-              const dist = Math.sqrt(dx * dx + dy * dy);
+           // ⚡ [軽量化] 三角関数を一切使わない単純な反発ベクトル計算
+           update() {
+               const dx = this.x - mouse.x;
+               const dy = this.y - mouse.y;
+               // 二乗距離で判定（高速化のためにMath.sqrtの回数を減らす）
+               const distSq = dx * dx + dy * dy;
+               const mouseRadiusSq = mouse.radius * mouse.radius;
 
-              // 🌟 【超軽量化の鍵】マウスが影響範囲 (mouse.radius) の中にいる時だけ物理演算を動かす
-              if (dist < mouse.radius) {
-                  const force = (mouse.radius - dist) / mouse.radius;
-                  const repelAngle = Math.atan2(dy, dx);
+               if (distSq < mouseRadiusSq) {
+                   const dist = Math.sqrt(distSq) || 1;
+                   const force = (mouse.radius - dist) / mouse.radius;
 
-                  // 反発速度の加算
-                  this.vx += Math.cos(repelAngle) * force * 2.2;
-                  this.vy += Math.sin(repelAngle) * force * 2.2;
+                   // 三角関数 (atan2, cos, sin) を使わずに、差分ベクトルを正規化して反発させる
+                   const dirX = dx / dist;
+                   const dirY = dy / dist;
 
-                  // 微妙なスピン（回転）を与える
-                  const spinDirection = (dx > 0 ? 1 : -1);
-                  this.currentRotationSpeed += spinDirection * force * 0.012;
-              } else {
-                  // 範囲外なら、摩擦減速（イージング）を強くかけ、一瞬で完全静止（速度・回転 = 0）させる
-                  this.vx *= 0.82;
-                  this.vy *= 0.82;
-                  this.currentRotationSpeed *= 0.82;
+                   this.vx += dirX * force * 1.8;
+                   this.vy += dirY * force * 1.8;
 
-                  if (Math.abs(this.vx) < 0.05) this.vx = 0;
-                  if (Math.abs(this.vy) < 0.05) this.vy = 0;
-                  if (Math.abs(this.currentRotationSpeed) < 0.001) this.currentRotationSpeed = 0;
-              }
+                   const spinAcceleration = (force * 0.03) / Math.sqrt(this.importance);
+                   if (this.baseRotationSpeed > 0) {
+                       this.currentRotationSpeed += spinAcceleration;
+                   } else {
+                       this.currentRotationSpeed -= spinAcceleration;
+                   }
+               } else {
+                   this.vx += (this.origVx - this.vx) * 0.04;
+                   this.vy += (this.origVy - this.vy) * 0.04;
+                   this.currentRotationSpeed += (this.baseRotationSpeed - this.currentRotationSpeed) * 0.04;
+               }
 
-              // 最高速度制限
-              const maxSpeed = 5;
-              const currentSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-              if (currentSpeed > maxSpeed) {
-                  this.vx = (this.vx / currentSpeed) * maxSpeed;
-                  this.vy = (this.vy / currentSpeed) * maxSpeed;
-              }
+               const maxSpeed = 4.5;
+               const currentSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+               if (currentSpeed > maxSpeed) {
+                   this.vx = (this.vx / currentSpeed) * maxSpeed;
+                   this.vy = (this.vy / currentSpeed) * maxSpeed;
+               }
 
-              // 実際に座標を加算
-              this.x += this.vx;
-              this.y += this.vy;
-              this.angle += this.currentRotationSpeed;
+               this.x += this.vx;
+               this.y += this.vy;
+               this.angle += this.currentRotationSpeed;
 
-              // 画面端の境界線衝突処理
-              const boundR = this.radius;
-              if (this.x - boundR < 0) {
-                  this.x = boundR;
-                  this.vx *= -0.5;
-              } else if (this.x + boundR > width) {
-                  this.x = width - boundR;
-                  this.vx *= -0.5;
-              }
+               const boundR = this.radius;
+               if (this.x - boundR < 0) {
+                   this.x = boundR;
+                   this.vx *= -1;
+                   this.origVx *= -1;
+               } else if (this.x + boundR > width) {
+                   this.x = width - boundR;
+                   this.vx *= -1;
+                   this.origVx *= -1;
+               }
 
-              if (this.y - boundR < 0) {
-                  this.y = boundR;
-                  this.vy *= -0.5;
-              } else if (this.y + boundR > height) {
-                  this.y = height - boundR;
-                  this.vy *= -0.5;
-              }
-          }
+               if (this.y - boundR < 0) {
+                   this.y = boundR;
+                   this.vy *= -1;
+                   this.origVy *= -1;
+               } else if (this.y + boundR > height) {
+                   this.y = height - boundR;
+                   this.vy *= -1;
+                   this.origVy *= -1;
+               }
+           }
 
-          draw() {
-              ctx.save();
-              ctx.translate(this.x, this.y);
-              ctx.rotate(this.angle);
+           // ⚡ [軽量化] 重い shadowBlur（ドロップシャドウ）を廃止し、
+           // 頂点ループを排除したシンプルな角丸四角形（あるいは楕円）描画に変更
+           draw() {
+               ctx.save();
+               ctx.translate(this.x, this.y);
+               ctx.rotate(this.angle);
 
-              if (this.vertices.length > 0) {
-                  // フラットシャドウ
-                  ctx.save();
-                  ctx.translate(3, 5);
-                  ctx.beginPath();
-                  ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
-                  for (let i = 1; i < this.vertices.length; i++) {
-                      ctx.lineTo(this.vertices[i].x, this.vertices[i].y);
-                  }
-                  ctx.closePath();
-                  ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-                  ctx.fill();
-                  ctx.restore();
+               // 影をブラウザ内蔵の重い shadowBlur ではなく、
+               // 描画位置を少しずらした半透明ブラックの図形を先に1回だけ敷く「擬似シャドウ」で超高速化
+               ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+               ctx.beginPath();
+               ctx.roundRect(-this.sizeW / 2 + 4, -this.sizeH / 2 + 4, this.sizeW, this.sizeH, 12);
+               ctx.fill();
 
-                  // 本体多角形 (透過を少し減らして発色を最適化)
-                  ctx.beginPath();
-                  ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
-                  for (let i = 1; i < this.vertices.length; i++) {
-                      ctx.lineTo(this.vertices[i].x, this.vertices[i].y);
-                  }
-                  ctx.closePath();
-                  ctx.fillStyle = this.color + "e0";
-                  ctx.fill();
-              }
+               // 本体描画 (多角形生成ループを廃止して標準の角丸四角形に)
+               ctx.beginPath();
+               ctx.roundRect(-this.sizeW / 2, -this.sizeH / 2, this.sizeW, this.sizeH, 12);
+               ctx.fillStyle = this.color + "d4"; // 若干不透明な色
+               ctx.fill();
 
-              // 外枠線
-              ctx.lineWidth = 1.8;
-              ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
-              ctx.stroke();
+               ctx.lineWidth = 1.8;
+               ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+               ctx.stroke();
 
-              // テキスト情報
-              ctx.fillStyle = "#ffffff";
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              const fontBase = this.radius * 0.16;
+               // テキスト関係の描画
+               ctx.fillStyle = "#ffffff";
+               ctx.textAlign = "center";
+               ctx.textBaseline = "middle";
+               const fontBase = this.radius * 0.16;
 
-              // タスクタイトル
-              ctx.font = `bold ${Math.max(10, fontBase)}px sans-serif`;
-              ctx.fillText(this.displayTitle, 0, -this.radius * 0.22);
+               // 1. タスク名
+               ctx.font = `bold ${Math.max(10, fontBase)}px sans-serif`;
+               let displayTitle = this.title;
+               const maxW = this.sizeW * 0.75;
+               if (ctx.measureText(displayTitle).width > maxW) {
+                   while (ctx.measureText(displayTitle + "...").width > maxW && displayTitle.length > 0) {
+                       displayTitle = displayTitle.slice(0, -1);
+                   }
+                   displayTitle += "...";
+               }
+               ctx.fillText(displayTitle, 0, -this.radius * 0.22);
 
-              // 線
-              ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-              ctx.lineWidth = 1;
-              ctx.beginPath();
-              ctx.moveTo(-this.sizeW * 0.35, -this.radius * 0.05);
-              ctx.lineTo(this.sizeW * 0.35, -this.radius * 0.05);
-              ctx.stroke();
+               // 区切り線
+               ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+               ctx.lineWidth = 1;
+               ctx.beginPath();
+               ctx.moveTo(-this.sizeW * 0.35, -this.radius * 0.05);
+               ctx.lineTo(this.sizeW * 0.35, -this.radius * 0.05);
+               ctx.stroke();
 
-              // タグ
-              ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
-              ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-              ctx.fillText(`🏷️: ${this.tag}`, 0, this.radius * 0.12);
+               // 2. タグ
+               ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
+               ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+               ctx.fillText(`🏷️: ${this.tag}`, 0, this.radius * 0.12);
 
-              // 期限
-              ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
-              ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-              ctx.fillText(`📅: ${this.deadlineStr}`, 0, this.radius * 0.32);
+               // 3. 期限
+               ctx.font = `${Math.max(8, fontBase * 0.8)}px sans-serif`;
+               ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+               ctx.fillText(`📅: ${this.deadlineStr}`, 0, this.radius * 0.32);
 
-              ctx.restore();
-          }
-      }
+               ctx.restore();
+           }
+       }
 
-      const fragments = [];
-      completedTasks.forEach(task => {
-          fragments.push(new Fragment(task));
-      });
+       const fragments = [];
+       completedTasks.forEach(task => {
+           fragments.push(new Fragment(task));
+       });
 
-      function loop() {
-          const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || !document.documentElement.getAttribute('data-theme');
-          ctx.fillStyle = isDark ? "#070a13" : "#f1f5f9";
-          ctx.fillRect(0, 0, width, height);
+       function loop() {
+           const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || !document.documentElement.getAttribute('data-theme');
+           ctx.fillStyle = isDark ? "#070a13" : "#f1f5f9";
+           ctx.fillRect(0, 0, width, height);
 
-          fragments.forEach(f => {
-              f.update();
-              f.draw();
-          });
+           fragments.forEach(f => {
+               f.update();
+               f.draw();
+           });
 
-          requestAnimationFrame(loop);
-      }
+           requestAnimationFrame(loop);
+       }
 
-      loop();
+       loop();
     </script>
   </body>
 </html>
