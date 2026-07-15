@@ -400,6 +400,8 @@
         let allTasks = <%- JSON.stringify(tasks) %>;
         let currentTargetTaskId = null;
         let currentTargetTaskTitle = "";
+        // スクリプト内の exportJsonBtn の処理よりも上に記述してください
+const tasks = <%- JSON.stringify(tasks) %>;
 
         // 🔥 【対策A】強制的に日本時間(Asia/Tokyo)のタイムゾーンに解釈してフォーマットする関数
         function formatToJST(dateString) {
