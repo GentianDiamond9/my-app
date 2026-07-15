@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visual Task - Dynamic Task Treemap</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -185,14 +184,13 @@
 </head>
 <body class="p-6">
 
-    <!-- 🌌 ヘッダー & テーマ切替 -->
     <header class="max-w-6xl mx-auto flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-black tracking-tight flex items-center gap-2">
                 🚀 Visual Task
             </h1>
             <p class="text-xs text-[var(--text-muted)] mt-1">
-                視覚的に優先度を支配する。ツリーマップやメモボタン、履歴一覧を活用しましょう。
+                視覚的に優先度を支配する。ツリーマップやメモボタン、検索フィルター、履歴一覧を活用しましょう。
             </p>
         </div>
         <div class="flex items-center gap-3">
@@ -207,13 +205,11 @@
 
     <main class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <!-- ⚙️ 1. 左側：タスク登録・統計パネル -->
         <div class="space-y-6 lg:col-span-1">
             
-            <!-- 新規タスクフォーム -->
             <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-sm">
                 <h2 class="text-lg font-bold mb-4 flex items-center gap-2">📥 タスク新規登録</h2>
-                <form action="/tasks" method="POST" class="space-y-4">
+                <form action="/tasks" method="POST" onsubmit="adjustSubmitTime(this)" class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-[var(--text-muted)] mb-1">📝 タスク名</label>
                         <input type="text" name="title" required placeholder="今すぐやることを入力..." class="w-full p-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-indigo-500 outline-none">
@@ -254,7 +250,17 @@
                 </form>
             </div>
 
-            <!-- 期限内達成率 統計 -->
+            <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-sm">
+                <h2 class="text-lg font-bold mb-3 flex items-center gap-2">🔍 タスク絞り込み検索</h2>
+                <div class="relative">
+                    <input type="text" id="taskSearchInput" placeholder="タイトルまたはタグで検索..." class="w-full p-3 pl-10 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <span class="absolute left-3.5 top-3.5 text-slate-400 text-sm">🔍</span>
+                </div>
+                <p class="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
+                    ※文字を入力すると、ツリーマップと下の管理リストが連動してリアルタイムに表示を絞り込みます。
+                </p>
+            </div>
+
             <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-sm">
                 <h2 class="text-lg font-bold mb-4 flex items-center gap-2">📊 期限内達成率 (オンタイム率)</h2>
                 <div class="space-y-4">
@@ -281,17 +287,13 @@
 
         </div>
 
-        <!-- 🗺️ 2. 右側：ツリーマップ & タスクリスト -->
         <div class="lg:col-span-2 space-y-6">
             
-            <!-- ツリーマップ表示エリア -->
             <div class="relative">
                 <div id="treemapContainer"></div>
-                <!-- 詳細ホバーオーバーレイ -->
                 <div id="detailOverlay" class="absolute bottom-4 left-4 right-4 bg-slate-900/90 text-white p-3 rounded-lg text-xs leading-relaxed border border-slate-700 pointer-events-none hidden" style="z-index: 100;"></div>
             </div>
 
-            <!-- タスク一覧リスト -->
             <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl">
                 <h2 class="text-lg font-bold mb-4">🗂 タスク管理リスト</h2>
                 <div id="taskList" class="space-y-3">
@@ -299,7 +301,10 @@
                         <p class="text-sm text-center text-[var(--text-muted)] py-6">タスクが登録されていません。上のフォームから登録しましょう！</p>
                     <% } else { %>
                         <% tasks.forEach(task => { %>
-                            <div id="task-<%= task.id %>" class="task-card flex flex-col md:flex-row md:items-center justify-between p-4 bg-[var(--bg)] border border-[var(--border)] rounded-xl gap-4">
+                            <div id="task-<%= task.id %>" 
+                                 data-title="<%= task.title.toLowerCase() %>" 
+                                 data-tag="<%= (task.tag || '').toLowerCase() %>"
+                                 class="task-card flex flex-col md:flex-row md:items-center justify-between p-4 bg-[var(--bg)] border border-[var(--border)] rounded-xl gap-4">
                                 <div class="flex items-start gap-3">
                                     <span class="w-3.5 h-3.5 rounded-full mt-1 shrink-0" style="background-color: <%= task.color || '#64748b' %>;"></span>
                                     <div>
@@ -308,21 +313,19 @@
                                             <% if (task.tag) { %>
                                                 <span class="px-1.5 py-0.5 rounded border border-[var(--border)] text-[10px] font-bold">🏷️ <%= task.tag %></span>
                                             <% } %>
-                                            <span>📅 期限: <%= new Date(task.deadline).toLocaleString() %></span>
+                                            <span class="deadline-label" data-utc="<%= task.deadline %>">📅 期限: 計算中...</span>
                                             <% if (task.is_completed && task.completed_at) { %>
-                                                <span class="text-emerald-500 font-bold">✓ 完了日: <%= new Date(task.completed_at).toLocaleString() %></span>
+                                                <span class="text-emerald-500 font-bold completed-label" data-utc="<%= task.completed_at %>">✓ 完了日: 計算中...</span>
                                             <% } %>
                                         </div>
                                     </div>
                                 </div>
                                 
                                 <div class="flex items-center gap-2 self-end md:self-auto">
-                                    <!-- メモ編集ボタン -->
                                     <button class="btn px-3 py-1.5 text-xs bg-slate-700 text-white rounded-md flex items-center gap-1 font-semibold memo-btn" data-id="<%= task.id %>" data-title="<%= task.title %>">
                                         📝 メモ
                                     </button>
                                     
-                                    <!-- 完了・未完了スイッチ -->
                                     <% if (task.is_completed) { %>
                                         <button class="btn toggle-btn px-3 py-1.5 text-xs bg-amber-600 text-white rounded-md flex items-center gap-1 font-semibold" data-id="<%= task.id %>" data-status="false">
                                             ↩ 未完了に戻す
@@ -333,7 +336,6 @@
                                         </button>
                                     <% } %>
                                     
-                                    <!-- 削除ボタン -->
                                     <button class="btn delete-btn px-2.5 py-1.5 text-xs bg-rose-600 text-white rounded-md" data-id="<%= task.id %>">
                                         🗑 削除
                                     </button>
@@ -347,7 +349,6 @@
         </div>
     </main>
 
-    <!-- 🎯 【新規/改善】 アクション選択モーダル (ツリーマップクリック時に呼び出し) -->
     <div id="choiceModal" class="modal-backdrop">
         <div class="modal-content text-center">
             <h3 id="choiceTaskTitle" class="text-base font-black border-b border-[var(--border)] pb-2.5 mb-5 text-[var(--text)]">タスク操作の選択</h3>
@@ -368,7 +369,6 @@
         </div>
     </div>
 
-    <!-- 📝 メモ詳細・編集ポップアップモーダル -->
     <div id="memoModal" class="modal-backdrop">
         <div class="modal-content">
             <h3 id="modalTaskTitle" class="text-base font-black border-b border-[var(--border)] pb-2.5 mb-4 text-[var(--text)]">タスクメモ</h3>
@@ -383,7 +383,6 @@
         </div>
     </div>
 
-    <!-- ⚙️ 画面最下部：設定メニュー -->
     <hr style="border: 0; border-top: 1px solid var(--border); margin: 60px 0 20px 0;">
     <div class="settings-container animate-fade-in" style="max-width: 800px; margin: 0 auto 40px auto; padding: 20px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border);">
         <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; font-weight: 700;">⚙️ システム設定・データ管理</h3>
@@ -400,17 +399,49 @@
         </div>
     </div>
 
-    <!-- 💾 演出ロジック & イベントバインド記述 -->
     <script>
         let allTasks = <%- JSON.stringify(tasks) %>;
         let currentTargetTaskId = null;
         let currentTargetTaskTitle = "";
 
+        // 🔥 【日本時間(JST)への完全時差補正フォーマット処理】
+        function formatToJST(dateString) {
+            if (!dateString) return "-";
+            const d = new Date(dateString);
+            // 日本時間（UTC+9）に補正して綺麗にフォーマット
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            return `${year}/${month}/${day} ${hours}:${minutes}`;
+        }
+
+        // 🔥 【登録時の時刻調整】ブラウザローカル基準の時間をそのままJSTとして送信
+        function adjustSubmitTime(form) {
+            const input = form.querySelector('#defaultDeadline');
+            if (input && input.value) {
+                // 送信時にそのまま送信されるため、サーバー側(TZ=Asia/Tokyo)で正確にパースされます。
+            }
+        }
+
         // 初期ロード処理
         window.addEventListener('load', () => {
+            // 日本のタイムゾーンに基づいた日付ピッカー初期化
             const now = new Date();
-            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            document.getElementById('defaultDeadline').value = now.toISOString().slice(0, 16);
+            const offset = now.getTimezoneOffset() * 60000;
+            const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
+            document.getElementById('defaultDeadline').value = localISOTime;
+
+            // 各タスク表示の時刻フォーマットを反映
+            document.querySelectorAll('.deadline-label').forEach(el => {
+                const utc = el.getAttribute('data-utc');
+                el.innerText = `📅 期限: ${formatToJST(utc)}`;
+            });
+            document.querySelectorAll('.completed-label').forEach(el => {
+                const utc = el.getAttribute('data-utc');
+                el.innerText = `✓ 完了日: ${formatToJST(utc)}`;
+            });
             
             buildTagHistory();
             calculateRates();
@@ -418,6 +449,7 @@
             setupSettingsEvents();
             setupMemoEvents();
             setupChoiceEvents();
+            setupSearchEvent(); // 🔎 検索イベントバインド
         });
 
         // A. テーマ切り替え
@@ -444,7 +476,6 @@
                     uniqueTags.push({ tag: t.tag, color: t.color });
                 }
             });
-
             uniqueTags.slice(-6).forEach(item => {
                 const span = document.createElement('span');
                 span.className = 'tag-history-item';
@@ -463,17 +494,14 @@
             const now = new Date();
             const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
             const weekTasks = allTasks.filter(t => {
                 const date = t.completed_at ? new Date(t.completed_at) : new Date(t.deadline);
                 return date >= oneWeekAgo;
             });
-
             const monthTasks = allTasks.filter(t => {
                 const date = t.completed_at ? new Date(t.completed_at) : new Date(t.deadline);
                 return date >= oneMonthAgo;
             });
-
             const getRate = (taskList) => {
                 const completed = taskList.filter(t => t.is_completed);
                 if (completed.length === 0) return 0;
@@ -493,23 +521,43 @@
             document.getElementById('monthRateBar').style.width = `${monthRate}%`;
         }
 
+        // 🔎 【新規】リアルタイム検索フィルター処理
+        function setupSearchEvent() {
+            const searchInput = document.getElementById('taskSearchInput');
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                
+                // 1. 管理リスト (HTML) の表示・非表示コントロール
+                const cards = document.querySelectorAll('.task-card');
+                cards.forEach(card => {
+                    const title = card.getAttribute('data-title') || "";
+                    const tag = card.getAttribute('data-tag') || "";
+                    if (title.includes(query) || tag.includes(query)) {
+                        card.style.display = 'flex';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+
+                // 2. ツリーマップ描画フィルタリング
+                renderTreemap(query);
+            });
+        }
+
         // D. リスト内イベントリスナー
         document.getElementById('taskList').addEventListener('click', async (e) => {
             const toggleBtn = e.target.closest('.toggle-btn');
             const deleteBtn = e.target.closest('.delete-btn');
             const memoBtn = e.target.closest('.memo-btn');
-
             if (toggleBtn) {
                 const id = Number(toggleBtn.getAttribute('data-id'));
                 const targetStatus = toggleBtn.getAttribute('data-status') === 'true';
                 await toggleTaskStatus(id, targetStatus);
             }
-            
             if (deleteBtn) {
                 const id = Number(deleteBtn.getAttribute('data-id'));
                 await deleteTask(id);
             }
-
             if (memoBtn) {
                 const id = Number(memoBtn.getAttribute('data-id'));
                 const title = memoBtn.getAttribute('data-title');
@@ -523,36 +571,29 @@
                 const rect = targetElement.getBoundingClientRect();
                 const centerX = rect.left + window.scrollX + rect.width / 2;
                 const centerY = rect.top + window.scrollY + rect.height / 2;
-
                 targetElement.classList.add('shattering');
                 targetElement.style.transition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
                 targetElement.style.transform = 'scale(1.1) rotate(2deg)';
                 targetElement.style.opacity = '0';
                 targetElement.style.filter = 'blur(3px)';
-
                 const shardCount = 35;
                 const sparkleCount = 65;
                 let activeElements = shardCount + sparkleCount;
-
                 const colors = [baseColor, '#ffffff', '#ffd700', '#ff4365', '#00d2fc'];
-
                 for (let i = 0; i < shardCount; i++) {
                     const shard = document.createElement('div');
                     shard.className = 'shatter-piece';
-                    
                     const w = Math.random() * (rect.width * 0.15) + 12;
                     const h = Math.random() * (rect.height * 0.15) + 12;
                     shard.style.width = `${w}px`;
                     shard.style.height = `${h}px`;
                     shard.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
                     shard.style.clipPath = `polygon(${Math.random()*20}% ${Math.random()*20}%, ${80+Math.random()*20}% ${Math.random()*20}%, ${80+Math.random()*20}% ${80+Math.random()*20}%, ${Math.random()*20}% ${80+Math.random()*20}%)`;
-
                     const startX = rect.left + window.scrollX + (Math.random() * rect.width);
                     const startY = rect.top + window.scrollY + (Math.random() * rect.height);
                     shard.style.left = `${startX}px`;
                     shard.style.top = `${startY}px`;
                     document.body.appendChild(shard);
-
                     const angle = Math.random() * Math.PI * 2;
                     const force = Math.random() * 15 + 6;
                     let vx = Math.cos(angle) * force;
@@ -561,10 +602,8 @@
                     let rotSpeed = (Math.random() - 0.5) * 24;
                     let opacity = 1;
                     const gravity = 0.35;
-
                     let px = startX;
                     let py = startY;
-
                     const animShard = () => {
                         if (opacity <= 0.02) {
                             shard.remove();
@@ -572,46 +611,35 @@
                             if (activeElements === 0) resolve();
                             return;
                         }
-                        vy += gravity;
-                        px += vx;
-                        py += vy;
-                        rot += rotSpeed;
+                        vy += gravity; px += vx; py += vy; rot += rotSpeed;
                         opacity -= 0.016;
-
                         shard.style.left = `${px}px`;
                         shard.style.top = `${py}px`;
                         shard.style.transform = `rotate(${rot}deg) scale(${opacity})`;
                         shard.style.opacity = opacity;
-
                         requestAnimationFrame(animShard);
                     };
                     requestAnimationFrame(animShard);
                 }
-
                 for (let i = 0; i < sparkleCount; i++) {
                     const p = document.createElement('div');
                     p.className = 'sparkle-particle';
-                    
                     const size = Math.random() * 8 + 3;
                     p.style.width = `${size}px`;
                     p.style.height = `${size}px`;
                     p.style.background = colors[Math.floor(Math.random() * colors.length)];
                     p.style.boxShadow = `0 0 10px ${colors[Math.floor(Math.random() * colors.length)]}`;
-                    
                     p.style.left = `${centerX}px`;
                     p.style.top = `${centerY}px`;
                     document.body.appendChild(p);
-
                     const angle = Math.random() * Math.PI * 2;
                     const speed = Math.random() * 17 + 8;
                     let vx = Math.cos(angle) * speed;
                     let vy = Math.sin(angle) * speed;
                     let opacity = 1;
                     const gravity = 0.24;
-
                     let px = centerX;
                     let py = centerY;
-
                     const animSpark = () => {
                         if (opacity <= 0.02) {
                             p.remove();
@@ -619,15 +647,11 @@
                             if (activeElements === 0) resolve();
                             return;
                         }
-                        vy += gravity;
-                        px += vy;
-                        opacity -= 0.02;
-
+                        vy += gravity; px += vy; opacity -= 0.02;
                         p.style.left = `${px}px`;
                         p.style.top = `${py}px`;
                         p.style.opacity = opacity;
                         p.style.transform = `scale(${opacity})`;
-
                         requestAnimationFrame(animSpark);
                     };
                     requestAnimationFrame(animSpark);
@@ -644,12 +668,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ is_completed: isCompletedValue })
                 });
-                
                 if (response.ok) {
                     if (isCompletedValue === true) {
                         const originalTask = allTasks.find(t => t.id === id);
                         const treemapNode = document.getElementById(`tree-node-${id}`);
-                        
                         if (treemapNode) {
                             const nodeColor = originalTask && originalTask.color && originalTask.color !== '#64748b' ? originalTask.color : '#4f46e5';
                             await triggerShatterAndSparkles(treemapNode, nodeColor);
@@ -671,100 +693,50 @@
             try {
                 const response = await fetch(`/tasks/${id}`, { method: 'DELETE' });
                 if (response.ok) {
-                    const treemapNode = document.getElementById(`tree-node-${id}`);
-                    if (treemapNode) {
-                        await triggerShatterAndSparkles(treemapNode, '#ef4444');
-                    }
                     location.reload();
                 } else {
                     alert('削除に失敗しました。');
                 }
             } catch (err) {
-                console.error("削除エラー:", err);
+                alert('通信に失敗しました。');
             }
         }
 
-        // 🎯 選択モーダル (メモか完了かを選ぶ)
-        const choiceModal = document.getElementById('choiceModal');
-        const choiceTaskTitle = document.getElementById('choiceTaskTitle');
+        // E. ⚙️ システム設定・初期化処理
+        function setupSettingsEvents() {
+            document.getElementById('backupBtn').onclick = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(allTasks, null, 2));
+                const dlAnchor = document.createElement('a');
+                dlAnchor.setAttribute("href", dataStr);
+                dlAnchor.setAttribute("download", `visual_tasks_backup_${Date.now()}.json`);
+                dlAnchor.click();
+            };
 
-        function openChoiceModal(taskId, taskTitle) {
-            currentTargetTaskId = taskId;
-            currentTargetTaskTitle = taskTitle;
-            choiceTaskTitle.innerText = `🗂 【Visual Task】 ${taskTitle}`;
-            choiceModal.classList.add('active');
-        }
-
-        function closeChoiceModal() {
-            choiceModal.classList.remove('active');
-        }
-
-        function setupChoiceEvents() {
-            document.getElementById('closeChoiceBtn').addEventListener('click', closeChoiceModal);
-            
-            // 選択モーダル枠外
-            choiceModal.addEventListener('click', (e) => {
-                if (e.target === choiceModal) closeChoiceModal();
-            });
-
-            // メモボタン選択
-            document.getElementById('choiceMemoBtn').addEventListener('click', () => {
-                closeChoiceModal();
-                openMemoModal(currentTargetTaskId, currentTargetTaskTitle);
-            });
-
-            // 完了ボタン選択
-            document.getElementById('choiceCompleteBtn').addEventListener('click', async () => {
-                closeChoiceModal();
-                await toggleTaskStatus(currentTargetTaskId, true);
-            });
-        }
-
-        // 📝 メモモーダル
-        const memoModal = document.getElementById('memoModal');
-        const modalTaskTitle = document.getElementById('modalTaskTitle');
-        const modalMemoTextarea = document.getElementById('modalMemoTextarea');
-
-        async function openMemoModal(taskId, taskTitle) {
-            currentTargetTaskId = taskId;
-            modalTaskTitle.innerText = `🗂 【メモ】${taskTitle}`;
-            modalMemoTextarea.value = "読み込み中...";
-            
-            memoModal.classList.add('active');
-            modalMemoTextarea.focus();
-
-            try {
-                const response = await fetch(`/tasks/${taskId}/memos`);
-                if (response.ok) {
-                    const memos = await response.json();
-                    if (memos.length > 0) {
-                        modalMemoTextarea.value = memos[0].content;
+            document.getElementById('resetBtn').onclick = async () => {
+                if (!confirm("⚠️ 【警告】本当に完全に初期化しますか？\n登録した全タスクデータ、メモデータが完全に消失します。この操作は取り消せません。")) return;
+                try {
+                    const response = await fetch('/tasks', { method: 'DELETE' });
+                    if (response.ok) {
+                        alert('システムを完全に初期化しました。');
+                        location.reload();
                     } else {
-                        modalMemoTextarea.value = "";
+                        alert('初期化に失敗しました。');
                     }
-                } else {
-                    modalMemoTextarea.value = "メモの読み込みに失敗しました。";
+                } catch (err) {
+                    alert('通信に失敗しました。');
                 }
-            } catch (err) {
-                console.error("メモ読み込みエラー:", err);
-                modalMemoTextarea.value = "通信エラーが発生しました。";
-            }
+            };
         }
 
-        function closeMemoModal() {
-            memoModal.classList.remove('active');
-            currentTargetTaskId = null;
-        }
+        // F. 📝 メモ編集ロジック
+        const memoModal = document.getElementById('memoModal');
+        const modalMemoTextarea = document.getElementById('modalMemoTextarea');
+        const modalTaskTitle = document.getElementById('modalTaskTitle');
 
         function setupMemoEvents() {
-            document.getElementById('closeModalBtn').addEventListener('click', closeMemoModal);
-            memoModal.addEventListener('click', (e) => {
-                if (e.target === memoModal) closeMemoModal();
-            });
-
-            document.getElementById('saveModalBtn').addEventListener('click', async () => {
+            document.getElementById('closeModalBtn').onclick = () => memoModal.classList.remove('active');
+            document.getElementById('saveModalBtn').onclick = async () => {
                 if (!currentTargetTaskId) return;
-                
                 const content = modalMemoTextarea.value;
                 try {
                     const response = await fetch(`/tasks/${currentTargetTaskId}/memos`, {
@@ -772,198 +744,174 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ content })
                     });
-
                     if (response.ok) {
-                        closeMemoModal();
+                        memoModal.classList.remove('active');
+                        alert('メモを保存しました。');
                     } else {
-                        alert('メモの保存に失敗しました。');
+                        alert('保存に失敗しました。');
                     }
                 } catch (err) {
-                    console.error("メモ保存エラー:", err);
-                    alert('通信エラーによりメモを保存できませんでした。');
+                    alert('通信に失敗しました。');
                 }
-            });
+            };
         }
 
-        // ⚙️ 設定メニュー
-        function setupSettingsEvents() {
-            document.getElementById('backupBtn').addEventListener('click', () => {
-                try {
-                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(allTasks, null, 2));
-                    const downloadAnchor = document.createElement('a');
-                    const dateStr = new Date().toISOString().slice(0,10);
-                    downloadAnchor.setAttribute("href", dataStr);
-                    downloadAnchor.setAttribute("download", `tasks_backup_${dateStr}.json`);
-                    document.body.appendChild(downloadAnchor);
-                    downloadAnchor.click();
-                    downloadAnchor.remove();
-                } catch (err) {
-                    alert('データのバックアップ処理中にエラーが発生しました。');
-                }
-            });
+        async function openMemoModal(taskId, taskTitle) {
+            currentTargetTaskId = taskId;
+            modalTaskTitle.innerText = `📝 「${taskTitle}」のメモ`;
+            modalMemoTextarea.value = "読み込み中...";
+            memoModal.classList.add('active');
 
-            document.getElementById('resetBtn').addEventListener('click', async () => {
-                if (!confirm("⚠️ 【超重要警告】\nデータベース内のすべてのタスクデータが「完全に」消去されます。\n本当によろしいですか？")) return;
-                try {
-                    const response = await fetch('/tasks', { method: 'DELETE' });
-                    if (response.ok) {
-                        alert('すべてのタスクデータがリセットされました。');
-                        location.reload();
-                    } else {
-                        const errText = await response.text();
-                        alert(`リセット失敗: ${errText}`);
-                    }
-                } catch (err) {
-                    console.error("通信エラー:", err);
+            try {
+                const response = await fetch(`/tasks/${taskId}/memos`);
+                if (response.ok) {
+                    const memos = await response.json();
+                    modalMemoTextarea.value = (memos && memos.length > 0) ? memos[0].content : "";
+                } else {
+                    modalMemoTextarea.value = "";
                 }
-            });
+            } catch (err) {
+                modalMemoTextarea.value = "";
+            }
         }
 
-        // 📈 二分木パーティショニングツリーマップ
-        function computeBinaryTreemap(nodes, x, y, width, height) {
-            if (nodes.length === 0) return [];
-            if (nodes.length === 1) {
-                return [{
-                    ...nodes[0],
-                    x: x,
-                    y: y,
-                    w: width,
-                    h: height
-                }];
-            }
+        // G. 💥 アクション選択モーダル
+        const choiceModal = document.getElementById('choiceModal');
+        const choiceTaskTitle = document.getElementById('choiceTaskTitle');
 
-            const totalWeight = nodes.reduce((sum, n) => sum + n.weight, 0);
-            let halfWeight = 0;
-            let splitIndex = 0;
-
-            for (let i = 0; i < nodes.length; i++) {
-                halfWeight += nodes[i].weight;
-                if (halfWeight >= totalWeight / 2) {
-                    splitIndex = i + 1;
-                    break;
-                }
-            }
-            if (splitIndex === 0 || splitIndex === nodes.length) {
-                splitIndex = Math.floor(nodes.length / 2);
-            }
-
-            const leftGroup = nodes.slice(0, splitIndex);
-            const rightGroup = nodes.slice(splitIndex);
-
-            const leftWeight = leftGroup.reduce((sum, n) => sum + n.weight, 0);
-            const ratio = leftWeight / totalWeight;
-
-            const result = [];
-
-            if (width >= height) {
-                const leftWidth = width * ratio;
-                result.push(...computeBinaryTreemap(leftGroup, x, y, leftWidth, height));
-                result.push(...computeBinaryTreemap(rightGroup, x + leftWidth, y, width - leftWidth, height));
-            } else {
-                const topHeight = height * ratio;
-                result.push(...computeBinaryTreemap(leftGroup, x, y, width, topHeight));
-                result.push(...computeBinaryTreemap(rightGroup, x, y + topHeight, width, height - topHeight));
-            }
-
-            return result;
+        function setupChoiceEvents() {
+            document.getElementById('closeChoiceBtn').onclick = () => choiceModal.classList.remove('active');
+            document.getElementById('choiceMemoBtn').onclick = () => {
+                choiceModal.classList.remove('active');
+                openMemoModal(currentTargetTaskId, currentTargetTaskTitle);
+            };
+            document.getElementById('choiceCompleteBtn').onclick = async () => {
+                choiceModal.classList.remove('active');
+                await toggleTaskStatus(currentTargetTaskId, true);
+            };
         }
 
-        function renderTreemap() {
+        function openChoiceModal(taskId, taskTitle) {
+            currentTargetTaskId = taskId;
+            currentTargetTaskTitle = taskTitle;
+            choiceTaskTitle.innerText = `💥 「${taskTitle}」へのアクション`;
+            choiceModal.classList.add('active');
+        }
+
+        // H. 🗺️ ツリーマップ構造生成エンジン
+        function renderTreemap(searchQuery = "") {
             const container = document.getElementById('treemapContainer');
-            const overlay = document.getElementById('detailOverlay');
-            container.innerHTML = '';
-            
-            const activeTasks = allTasks.filter(t => !t.is_completed);
-            if (activeTasks.length === 0) {
-                container.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted);">🎉 すべてのタスクが完了しました！素晴らしい！</div>';
-                overlay.style.display = 'none';
+            container.innerHTML = "";
+
+            const labels = { 1: 'Low', 2: 'Medium', 3: 'High' };
+            const now = new Date();
+
+            // 検索ワードが存在する場合に絞り込む
+            const filteredData = allTasks.filter(t => {
+                if (t.is_completed) return false; // 完了済みは表示しない
+                if (!searchQuery) return true;
+                const titleMatch = t.title.toLowerCase().includes(searchQuery);
+                const tagMatch = t.tag && t.tag.toLowerCase().includes(searchQuery);
+                return titleMatch || tagMatch;
+            });
+
+            if (filteredData.length === 0) {
+                container.innerHTML = `<div class="flex items-center justify-center h-full w-full text-xs text-[var(--text-muted)]">表示対象の未完了タスクはありません</div>`;
                 return;
             }
 
-            const now = new Date();
-            const labels = {3: '高', 2: '中', 1: '低'};
-
-            const scoredTasks = activeTasks.map(task => {
-                const deadline = new Date(task.deadline);
-                const diffTime = deadline.getTime() - now.getTime();
-                
-                let weight = 0;
-                if (diffTime < 0) {
-                    const overdueMs = Math.abs(diffTime);
-                    const overdueDaysFraction = overdueMs / (1000 * 60 * 60 * 24);
-                    const penaltyFactor = 1 + overdueDaysFraction;
-                    weight = Math.pow(task.importance, 2) * penaltyFactor;
+            // ウエイト計算
+            const layouts = filteredData.map(t => {
+                const diffTime = new Date(t.deadline).getTime() - now.getTime();
+                let urgencyScore = 1;
+                if (diffTime > 0) {
+                    urgencyScore = 1 + (7 * 24 * 60 * 60 * 1000) / (diffTime + 60000);
                 } else {
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    const daysDivisor = diffDays <= 0 ? 0.5 : diffDays;
-                    weight = Math.pow(task.importance, 2) / daysDivisor;
+                    urgencyScore = 10 + Math.abs(diffTime) / (60 * 60 * 1000);
                 }
+                const weight = Number(t.importance) * 1.5 + urgencyScore;
+                return { ...t, weight, diffTime };
+            });
 
-                return { ...task, weight, diffTime };
-            }).sort((a, b) => b.weight - a.weight);
-
+            const totalWeight = layouts.reduce((sum, item) => sum + item.weight, 0);
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
 
-            const layoutedNodes = computeBinaryTreemap(scoredTasks, 0, 0, containerWidth, containerHeight);
-
-            layoutedNodes.forEach(layout => {
-                const node = document.createElement('div');
-                node.className = 'treemap-node';
-                node.id = `tree-node-${layout.id}`;
-                
-                if (layout.color && layout.color !== '#64748b') {
-                    node.style.backgroundColor = layout.color;
-                } else {
-                    node.style.backgroundColor = 'var(--default-node)';
+            // スコア分割による長方形算出
+            function treemapSquarify(data, x, y, width, height) {
+                if (data.length === 0) return;
+                if (data.length === 1) {
+                    data[0].rect = { x, y, w: width, h: height };
+                    return;
                 }
 
-                node.style.left = `${layout.x}px`;
-                node.style.top = `${layout.y}px`;
-                node.style.width = `${layout.w}px`;
-                node.style.height = `${layout.h}px`;
+                const firstHalf = [];
+                const secondHalf = [];
+                let halfSum = 0;
+                const halfTotal = data.reduce((s,i)=>s+i.weight, 0) / 2;
 
-                const area = layout.w * layout.h;
-                let fontSize = 0.8;
-                if (area > 50000) fontSize = 1.35;
-                else if (area > 20000) fontSize = 1.1;
-                else if (area < 9000) fontSize = 0.65;
-
-                node.style.fontSize = `${fontSize}rem`;
-
-                let timeStatusText = "";
-                const diffMs = layout.diffTime;
-
-                if (diffMs < 0) {
-                    const days = Math.abs(diffMs) / (1000 * 60 * 60 * 24);
-                    timeStatusText = `🚨 超過: ${days.toFixed(1)}日`;
-                } else {
-                    const oneDayMs = 24 * 60 * 60 * 1000;
-                    if (diffMs <= oneDayMs) {
-                        const minutesLeft = Math.max(0, Math.floor(diffMs / (1000 * 60)));
-                        timeStatusText = `⏳ 残り: ${minutesLeft}分`;
+                for (let i = 0; i < data.length; i++) {
+                    if (halfSum < halfTotal || firstHalf.length === 0) {
+                        firstHalf.push(data[i]);
+                        halfSum += data[i].weight;
                     } else {
-                        const originalDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-                        const adjustedDays = originalDays - 1;
-                        timeStatusText = `⏳ 残り: ${adjustedDays}日`;
+                        secondHalf.push(data[i]);
                     }
                 }
 
-                const tagLabel = layout.tag ? `[${layout.tag}]` : 'なし';
+                const ratio = halfSum / data.reduce((s,i)=>s+i.weight, 0);
 
-                if (area > 8500) {
+                if (width > height) {
+                    const currentW = width * ratio;
+                    treemapSquarify(firstHalf, x, y, currentW, height);
+                    treemapSquarify(secondHalf, x + currentW, y, width - currentW, height);
+                } else {
+                    const currentH = height * ratio;
+                    treemapSquarify(firstHalf, x, y, width, currentH);
+                    treemapSquarify(secondHalf, x, y + currentH, width, height - currentH);
+                }
+            }
+
+            layouts.sort((a, b) => b.weight - a.weight);
+            treemapSquarify(layouts, 0, 0, containerWidth, containerHeight);
+
+            // ノードの配置
+            layouts.forEach(layout => {
+                if (!layout.rect) return;
+                const node = document.createElement('div');
+                node.id = `tree-node-${layout.id}`;
+                node.className = 'treemap-node animate-fade-in';
+                node.style.left = `${layout.rect.x}px`;
+                node.style.top = `${layout.rect.y}px`;
+                node.style.width = `${layout.rect.w}px`;
+                node.style.height = `${layout.rect.h}px`;
+                node.style.backgroundColor = layout.color || 'var(--default-node)';
+
+                const isLarge = layout.rect.w > 120 && layout.rect.h > 80;
+                const fontSize = Math.min(1.1, Math.max(0.7, (layout.rect.w * layout.rect.h) / 18000));
+
+                let timeStatusText = "";
+                if (layout.diffTime < 0) {
+                    timeStatusText = "🚨 期限超過";
+                } else {
+                    const diffHr = Math.ceil(layout.diffTime / (1000 * 60 * 60));
+                    timeStatusText = diffHr > 24 ? `⏳ 残り ${Math.floor(diffHr / 24)}日` : `⚡ 残り ${diffHr}時間`;
+                }
+
+                const overlay = document.getElementById('detailOverlay');
+
+                if (isLarge) {
                     node.innerHTML = `
-                        <div class="node-title">${layout.title}</div>
-                        <div class="node-meta">
-                            <div class="node-tag" style="font-size: ${fontSize * 0.75}rem;">🏷️ ${tagLabel}</div>
-                            <div class="node-size" style="font-size: ${fontSize * 0.8}rem;">${timeStatusText}</div>
+                        <div class="node-title" style="font-size: ${fontSize}rem;">${layout.title}</div>
+                        <div class="node-meta" style="font-size: ${fontSize * 0.75}rem;">
+                            ${layout.tag ? `<div class="node-tag">🏷️ ${layout.tag}</div>` : ''}
+                            <div class="node-size">${timeStatusText}</div>
                         </div>
                     `;
                 } else {
                     node.innerHTML = `<div class="node-title" style="font-size: ${fontSize * 0.9}rem;">${layout.title}</div>`;
                 }
 
-                // ツリーマップノードをクリックした時に、アクション選択モーダルを開くように変更
                 node.addEventListener('click', (e) => {
                     e.stopPropagation();
                     openChoiceModal(layout.id, layout.title);
@@ -974,7 +922,7 @@
                         <strong>🗂 タスク名:</strong> ${layout.title}<br>
                         <strong>🏷️ タグ:</strong> ${layout.tag || 'なし'} | 
                         <strong>🚨 重要度:</strong> ${labels[layout.importance]} | 
-                        <strong>📅 期限:</strong> ${new Date(layout.deadline).toLocaleString()}<br>
+                        <strong>📅 期限:</strong> ${formatToJST(layout.deadline)}<br>
                         <strong>⚠️ ステータス:</strong> ${layout.diffTime < 0 ? '期限超過' : '処理中'} (${timeStatusText})<br>
                         <strong>📐 拡大ウエイト:</strong> ${layout.weight.toFixed(2)}
                     `;
@@ -989,7 +937,15 @@
             });
         }
 
-        window.onresize = renderTreemap;
+        // リサイズ時のDebounce間引き処理
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                const searchInput = document.getElementById('taskSearchInput');
+                renderTreemap(searchInput ? searchInput.value.toLowerCase().trim() : "");
+            }, 100);
+        });
     </script>
 </body>
 </html>

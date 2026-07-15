@@ -125,13 +125,21 @@
           }
       });
 
+      // 🔥 【日本時間フォーマット関数】時差のズレによるパースバグ防止
+      function formatToJST(dateString) {
+          if (!dateString) return "-";
+          const d = new Date(dateString);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}/${month}/${day}`;
+      }
+
       // --- 物理2Dパーティクル・シミュレーション ---
       const canvas = document.getElementById('historyCanvas');
       const ctx = canvas.getContext('2d');
-
       let width = canvas.width = window.innerWidth;
       let height = canvas.height = window.innerHeight;
-
       window.addEventListener('resize', () => {
           width = canvas.width = window.innerWidth;
           height = canvas.height = window.innerHeight;
@@ -154,7 +162,8 @@
               this.title = task.title;
               this.tag = task.tag || "なし";
               this.deadline = new Date(task.deadline);
-              this.deadlineStr = this.deadline.toLocaleDateString();
+              // 🔥 共通フォーマッタを用いて時差のバグを解消
+              this.deadlineStr = formatToJST(task.deadline);
               this.color = task.color || "#6366f1";
               this.importance = Number(task.importance) || 1; // 1, 2, 3 のいずれか
 
@@ -188,21 +197,17 @@
               const speed = 0.3 + Math.random() * 0.5;
               this.vx = Math.cos(moveAngle) * speed;
               this.vy = Math.sin(moveAngle) * speed;
-
               this.origVx = this.vx;
               this.origVy = this.vy;
 
               // 回転角度
               this.angle = Math.random() * Math.PI * 2;
-
               // 経過時間によるベース回転速度の算出
               const now = new Date();
               const diffTimeMs = Math.max(1, now.getTime() - this.deadline.getTime());
               const daysOld = diffTimeMs / (1000 * 60 * 60 * 24);
-
               this.baseRotationSpeed = Math.max(0.001, 0.012 / (1 + (daysOld / 20)));
               if (Math.random() > 0.5) this.baseRotationSpeed *= -1;
-
               this.currentRotationSpeed = this.baseRotationSpeed;
           }
 
@@ -214,7 +219,6 @@
               if (dist < mouse.radius) {
                   const force = (mouse.radius - dist) / mouse.radius;
                   const repelAngle = Math.atan2(dy, dx);
-
                   this.vx += Math.cos(repelAngle) * force * 1.8;
                   this.vy += Math.sin(repelAngle) * force * 1.8;
 
@@ -268,48 +272,48 @@
               ctx.translate(this.x, this.y);
               ctx.rotate(this.angle);
 
-              ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-              ctx.shadowBlur = 15;
-              ctx.shadowOffsetX = 3;
-              ctx.shadowOffsetY = 5;
+              // 破片の背景光
+              ctx.shadowBlur = this.radius * 0.4;
+              ctx.shadowColor = this.color;
 
+              // 多角形描画
+              ctx.fillStyle = this.color;
               ctx.beginPath();
-              if (this.vertices.length > 0) {
-                  ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
-                  for (let i = 1; i < this.vertices.length; i++) {
-                      ctx.lineTo(this.vertices[i].x, this.vertices[i].y);
-                  }
+              ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
+              for (let i = 1; i < this.vertices.length; i++) {
+                  ctx.lineTo(this.vertices[i].x, this.vertices[i].y);
               }
               ctx.closePath();
-
-              ctx.fillStyle = this.color + "d4";
               ctx.fill();
 
-              ctx.lineWidth = 1.8;
+              // 発光エフェクトオフ
+              ctx.shadowBlur = 0;
+
+              // ガラスの質感を出すためのグラデーション・オーバーレイ
+              const grad = ctx.createLinearGradient(-this.sizeW/2, -this.sizeH/2, this.sizeW/2, this.sizeH/2);
+              grad.addColorStop(0, "rgba(255, 255, 255, 0.25)");
+              grad.addColorStop(0.5, "rgba(255, 255, 255, 0)");
+              grad.addColorStop(1, "rgba(0, 0, 0, 0.45)");
+              ctx.fillStyle = grad;
+              ctx.fill();
+
+              // 枠線
               ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+              ctx.lineWidth = 1.5;
               ctx.stroke();
 
-              ctx.shadowColor = 'transparent';
-              ctx.shadowBlur = 0;
-              ctx.shadowOffsetX = 0;
-              ctx.shadowOffsetY = 0;
-
-              ctx.fillStyle = "#ffffff";
+              // テキスト情報を内部に描画
               ctx.textAlign = "center";
               ctx.textBaseline = "middle";
 
+              // 重要度に応じたフォントサイズ調整
               const fontBase = this.radius * 0.16;
 
-              // 1. タスク名
+              // 1. タスクタイトル
               ctx.font = `bold ${Math.max(10, fontBase)}px sans-serif`;
+              ctx.fillStyle = "#ffffff";
               let displayTitle = this.title;
-              const maxW = this.sizeW * 0.75;
-              if (ctx.measureText(displayTitle).width > maxW) {
-                  while (ctx.measureText(displayTitle + "...").width > maxW && displayTitle.length > 0) {
-                      displayTitle = displayTitle.slice(0, -1);
-                  }
-                  displayTitle += "...";
-              }
+              if (displayTitle.length > 8) displayTitle = displayTitle.substring(0, 7) + "...";
               ctx.fillText(displayTitle, 0, -this.radius * 0.22);
 
               // 区切り線
@@ -339,20 +343,22 @@
           fragments.push(new Fragment(task));
       });
 
-      function loop() {
-          const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || !document.documentElement.getAttribute('data-theme');
-          ctx.fillStyle = isDark ? "#070a13" : "#f1f5f9";
+      function animate() {
+          // 背景色クリア (テーマ色に追従)
+          const isLight = document.documentElement.getAttribute('data-theme') !== 'dark';
+          ctx.fillStyle = isLight ? "#f3f4f6" : "#0b0f19";
           ctx.fillRect(0, 0, width, height);
 
+          // 物理更新 & 描画
           fragments.forEach(f => {
               f.update();
               f.draw();
           });
 
-          requestAnimationFrame(loop);
+          requestAnimationFrame(animate);
       }
 
-      loop();
+      animate();
     </script>
   </body>
 </html>
