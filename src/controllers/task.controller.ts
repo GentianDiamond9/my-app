@@ -111,7 +111,7 @@ export class TaskController {
     }
   }
 
-  // 5. 【追加】 DELETE /tasks (完全リセット用の一括削除メソッド)
+  // 5. DELETE /tasks (完全リセット用の一括削除メソッド)
   async deleteAll(req: Request, res: Response): Promise<void> {
     try {
       await taskService.deleteAllTasks();
@@ -119,6 +119,51 @@ export class TaskController {
     } catch (error) {
       console.error("一括削除エラー:", error);
       res.status(500).json({ message: "Error resetting tasks", error });
+    }
+  }
+
+  // ---------------------------------------------------------
+  // 📝 【新規追加】メモ取得・保存アクション
+  // ---------------------------------------------------------
+
+  // GET /tasks/:taskId/memos
+  async getMemos(req: Request, res: Response): Promise<void> {
+    try {
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) {
+        res.status(400).json({ message: "Invalid Task ID format" });
+        return;
+      }
+
+      const memos = await taskService.getMemosByTaskId(taskId);
+      res.status(200).json(memos);
+    } catch (error) {
+      console.error("メモ取得エラー:", error);
+      res.status(500).json({ message: "Error retrieving memos", error });
+    }
+  }
+
+  // POST /tasks/:taskId/memos
+  async saveMemo(req: Request, res: Response): Promise<void> {
+    try {
+      const taskId = parseInt(req.params.taskId, 10);
+      const { content } = req.body;
+
+      if (isNaN(taskId)) {
+        res.status(400).json({ message: "Invalid Task ID format" });
+        return;
+      }
+
+      if (content === undefined) {
+        res.status(400).json({ message: "Content is required" });
+        return;
+      }
+
+      const memo = await taskService.saveMemo(taskId, content);
+      res.status(200).json(memo);
+    } catch (error) {
+      console.error("メモ保存エラー:", error);
+      res.status(500).json({ message: "Error saving memo", error });
     }
   }
 }

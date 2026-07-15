@@ -1,8 +1,8 @@
 import prisma from "../prisma";
-import { Task } from "@prisma/client";
+import { Task, Memo } from "@prisma/client";
 
 export class TaskService {
-  // 一覧取得
+  // 一覧取得 (メモの件数なども含めて取得可能)
   async getAllTasks(): Promise<Task[]> {
     return await prisma.task.findMany({
       orderBy: [{ is_completed: "asc" }, { importance: "desc" }],
@@ -46,9 +46,46 @@ export class TaskService {
     });
   }
 
-  // 【追加】全件削除（完全リセット機能用）
+  // 全件削除（完全リセット機能用）
   async deleteAllTasks(): Promise<void> {
     await prisma.task.deleteMany({});
+  }
+
+  // ---------------------------------------------------------
+  // 📝 【追加】メモ操作用のメソッド
+  // ---------------------------------------------------------
+
+  // 特定のタスクに紐づくメモ一覧を最新順で取得する
+  async getMemosByTaskId(taskId: number): Promise<Memo[]> {
+    return await prisma.memo.findMany({
+      where: { task_id: taskId },
+      orderBy: { created_at: "desc" },
+    });
+  }
+
+  // 特定のタスクに対してメモを保存する
+  // (今回は1タスク1メモの要件やシンプルな更新をカバーできるよう、upsert的な処理にしています)
+  async saveMemo(taskId: number, content: string): Promise<Memo> {
+    // まず既存のメモがあるか確認
+    const existingMemo = await prisma.memo.findFirst({
+      where: { task_id: taskId },
+    });
+
+    if (existingMemo) {
+      // 既にメモがある場合は更新
+      return await prisma.memo.update({
+        where: { id: existingMemo.id },
+        data: { content },
+      });
+    } else {
+      // 新規作成
+      return await prisma.memo.create({
+        data: {
+          task_id: taskId,
+          content,
+        },
+      });
+    }
   }
 
   // getStatistics メソッド

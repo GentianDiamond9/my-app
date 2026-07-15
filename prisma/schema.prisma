@@ -16,6 +16,22 @@ model Task {
   completed_at DateTime? // 完了ボタンが押された日時を記録するオプショナルフィールド
   tag          String?
   color        String?
+  
+  // 🔗 タスクに関連するメモ（1対多リレーション）
+  memos        Memo[]
 
   @@map("tasks")
+}
+
+model Memo {
+  id         Int      @id @default(autoincrement())
+  content    String   // メモの本文
+  created_at DateTime @default(now()) // メモが書かれた日時
+  updated_at DateTime @updatedAt      // メモが更新された日時
+
+  // 🔗 Taskモデルへの外部キー連携
+  task_id    Int
+  task       Task     @relation(fields: [task_id], references: [id], onDelete: Cascade)
+
+  @@map("memos")
 }

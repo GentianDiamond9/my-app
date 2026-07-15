@@ -3,447 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TreeMap Tasks Ultimate PRO</title>
+    <title>Dynamic Task Treemap</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* --- 1. グローバルスタイル & カラーパレットのモダン化 --- */
         :root {
-            --bg: #f3f4f6;
-            --card: #ffffff;
-            --text: #1f2937;
-            --text-muted: #6b7280;
-            --border: #e5e7eb;
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --default-node: #64748b;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --default-node: #4f46e5;
         }
-
-        [data-theme="dark"] {
-            --bg: #0b0f19;
-            --card: #151f32;
-            --text: #f9fafb;
-            --text-muted: #9ca3af;
-            --border: #243049;
-            --default-node: #475569;
+        [data-theme="light"] {
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --default-node: #6366f1;
         }
 
         body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background: var(--bg);
+            background-color: var(--bg);
             color: var(--text);
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 24px;
-            transition: background 0.3s, color 0.3s;
-            line-height: 1.5;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
         }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 32px;
-        }
-
-        .theme-toggle-btn {
-            background: var(--card);
-            color: var(--text);
-            border: 1px solid var(--border);
-            padding: 10px 20px;
-            border-radius: 9999px;
-            cursor: pointer;
-            font-weight: 600;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            transition: all 0.2s;
-        }
-        .theme-toggle-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        /* --- 2. グリッドレイアウト --- */
-        .main-container {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 28px;
-        }
-        @media(min-width: 992px) {
-            .main-container { grid-template-columns: 1fr 1.3fr; }
-        }
-
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.02);
-            transition: background 0.3s, border 0.3s;
-        }
-
-        .card h2 {
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin-top: 0;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* --- 3. タスクリストのデザイン向上 --- */
-        .task-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px;
-            border-bottom: 1px solid var(--border);
-            transition: background 0.2s;
-        }
-        .task-item:last-child { border-bottom: none; }
-        
-        .task-info { display: flex; flex-direction: column; gap: 4px; }
-        .completed { text-decoration: line-through; color: var(--text-muted); opacity: 0.6; }
-        .deadline-text { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
-        .overdue-alert { color: var(--danger) !important; font-weight: bold; }
 
         .btn {
-            padding: 8px 16px;
+            transition: all 0.2s ease;
             border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: 600;
-            transition: all 0.2s;
         }
-        .btn-success { background: var(--success); color: white; }
-        .btn-warning { background: var(--warning); color: white; }
-        .btn-danger { background: var(--danger); color: white; margin-left: 8px; }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            font-size: 0.75rem;
-            border-radius: 6px;
-            font-weight: bold;
-            margin-right: 6px;
-            color: white;
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.1);
         }
-        .badge-3 { background: var(--danger); }
-        .badge-2 { background: var(--warning); }
-        .badge-1 { background: var(--primary); }
-
-        .tag-badge {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            padding: 2px 8px;
-            font-size: 0.75rem;
-            border-radius: 9999px;
-            margin-left: 6px;
+        .btn:active {
+            transform: translateY(0);
         }
 
-        .color-dot {
-            display: inline-block;
-            width: 100%;
-            height: 4px;
-            border-radius: 9999px;
-            margin-top: 6px;
-        }
-
-        /* --- 4. タグ履歴システム --- */
-        .tag-history-wrapper { margin-bottom: 14px; }
-        .tag-history-item {
-            cursor: pointer;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.8rem;
-            border: 1px solid var(--border);
-            margin: 4px;
-            display: inline-block;
-            background: var(--bg);
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        .tag-history-item:hover {
-            transform: scale(1.05);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        /* --- 5. フォームデザイン --- */
-        form { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
-        .form-group { display: flex; flex-direction: column; gap: 6px; }
-        .form-row { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
-        input, select {
-            padding: 10px 14px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: var(--card);
-            color: var(--text);
-            font-size: 0.9rem;
-        }
-        input[type="color"] { padding: 4px; height: 42px; width: 100%; cursor: pointer; }
-        .btn-primary { background: var(--primary); color: white; padding: 12px; font-weight: bold; border-radius: 8px; }
-
-        /* --- 6. 株式市場風 Squarified Treemap ビジュアル --- */
-        .treemap-wrapper {
-            width: 100%;
-            height: 520px;
-            background: var(--bg);
-            border: 1px dashed var(--border);
-            border-radius: 12px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .treemap-node {
-            position: absolute;
-            box-sizing: border-box;
-            border: 2px solid var(--card);
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            overflow: hidden;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            color: white;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .treemap-node:hover {
-            filter: brightness(1.15);
-            box-shadow: inset 0 0 0 3px rgba(255,255,255,0.4);
-            z-index: 10;
-        }
-
-        .node-title { font-weight: 700; width: 100%; overflow: hidden; text-overflow: ellipsis; }
-        .node-size { opacity: 0.9; width: 100%; margin-top: 4px; font-weight: 500; }
-
-        .detail-overlay {
-            position: absolute;
-            bottom: 16px;
-            left: 16px;
-            right: 16px;
-            background: rgba(15, 23, 42, 0.95);
-            color: #ffffff;
-            padding: 16px;
-            border-radius: 12px;
-            border: 1px solid #334155;
-            font-size: 0.9rem;
-            display: none;
-            z-index: 100;
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.4);
-            pointer-events: none;
-        }
-
-        /* --- 7. 達成率ダッシュボード --- */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            text-align: center;
-        }
-        .stat-box {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            padding: 16px;
-            border-radius: 12px;
-        }
-        .stat-value {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: var(--primary);
-            margin: 8px 0;
-        }
-        .progress-bar-container {
-            width: 100%;
-            height: 8px;
-            background: var(--border);
-            border-radius: 9999px;
-            overflow: hidden;
-            margin-top: 8px;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            background: var(--primary);
-            border-radius: 9999px;
-            width: 0%;
-            transition: width 1s ease-out;
-        }
-
-        /* --- 8. 物理スパークパーティクル --- */
-        .sparkle-particle {
-            position: fixed;
-            pointer-events: none;
-            z-index: 9999;
-            border-radius: 50%;
-            mix-blend-mode: screen;
-        }
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1>TreeMap Ultimate PRO 🚀</h1>
-        <button class="theme-toggle-btn" id="themeToggle">🌓 テーマ切り替え</button>
-    </header>
-
-    <div class="main-container">
-        <div style="display: flex; flex-direction: column; gap: 28px;">
-            <div class="card">
-                <h2>📋 タスクの一覧</h2>
-                <div id="taskList">
-                    <% if (tasks.length === 0) { %>
-                        <p style="color: var(--text-muted);">タスクはまだありません。</p>
-                    <% } %>
-                    <% 
-                        const existingTags = [...new Set(tasks.map(t => t.tag).filter(Boolean))];
-                        tasks.forEach(task => { 
-                            const labels = {3: '高', 2: '中', 1: '低'};
-                            const isOverdue = !task.is_completed && (new Date() > new Date(task.deadline));
-                    %>
-                        <div class="task-item" id="task-<%= task.id %>">
-                            <div class="task-info">
-                                <span class="<%= task.is_completed ? 'completed' : '' %>" id="title-<%= task.id %>">
-                                    <span class="badge badge-<%= task.importance %>">重要度: <%= labels[task.importance] %></span>
-                                    <strong><%= task.title %></strong>
-                                    <% if (task.tag) { %>
-                                        <span class="tag-badge">🏷️ <%= task.tag %></span>
-                                    <% } %>
-                                </span>
-                                <span class="deadline-text <%= isOverdue ? 'overdue-alert' : '' %>" id="deadline-<%= task.id %>">
-                                    <%= isOverdue ? '🚨 期限超過: ' : '⏳ 期限: ' %> <%= new Date(task.deadline).toLocaleString() %>
-                                </span>
-                                <% if (task.color) { %>
-                                    <span class="color-dot" id="dot-<%= task.id %>" style="background-color: <%= task.color %>;"></span>
-                                <% } %>
-                            </div>
-                            <div id="actions-<%= task.id %>">
-                                <% if (task.is_completed) { %>
-                                    <button class="btn btn-warning toggle-btn" data-id="<%= task.id %>" data-status="false">戻す</button>
-                                <% } else { %>
-                                    <button class="btn btn-success toggle-btn" data-id="<%= task.id %>" data-status="true">完了</button>
-                                <% } %>
-                                <button class="btn btn-danger delete-btn" data-id="<%= task.id %>">削除</button>
-                            </div>
-                        </div>
-                    <% }) %>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>📈 期限内達成率</h2>
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">過去 1週間</div>
-                        <div class="stat-value" id="weekRateVal">--%</div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar-fill" id="weekRateBar"></div>
-                        </div>
-                    </div>
-                    <div class="stat-box">
-                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">過去 1ヶ月</div>
-                        <div class="stat-value" id="monthRateVal">--%</div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar-fill" id="monthRateBar"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>新しいタスクを追加</h3>
-                <form action="/tasks" method="POST">
-                    <div class="form-group">
-                        <label>タイトル</label>
-                        <input type="text" name="title" required placeholder="例: システム要件定義書の作成">
-                    </div>
-                    <div class="form-group">
-                        <label>期限 (分単位まで設定可能)</label>
-                        <input type="datetime-local" name="deadline" required id="defaultDeadline">
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>タグ（手入力 / 履歴選択）</label>
-                            <input type="text" name="tag" placeholder="例: 仕事, 研究" id="tagInput" list="tagSuggestions" autocomplete="off">
-                            <datalist id="tagSuggestions">
-                                <% existingTags.forEach(tag => { %>
-                                    <option value="<%= tag %>"></option>
-                                <% }) %>
-                            </datalist>
-                        </div>
-                        <div class="form-group">
-                            <label>カスタム色</label>
-                            <input type="color" name="color" id="colorInput" value="#64748b">
-                        </div>
-                    </div>
-
-                    <div class="tag-history-wrapper">
-                        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">最近使ったタグ:</label>
-                        <div id="tagHistory"></div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>重要度</label>
-                        <select name="importance">
-                            <option value="1">低</option>
-                            <option value="2">中</option>
-                            <option value="3">高</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">タスク作成</button>
-                </form>
-            </div>
-        </div>
-
-        <div class="card" style="display: flex; flex-direction: column; position: relative;">
-            <h2>📊 重要度マップ</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;" id="mapDescription">
-                優先度が高いタスクほど大きく表示されます！
-            </p>
-            <div class="treemap-wrapper" id="treemapContainer"></div>
-            <div class="detail-overlay" id="detailOverlay"></div>
-        </div>
-    </div>
-
-<hr style="border: 0; border-top: 1px solid var(--border); margin: 60px 0 20px 0;">
-    <div class="settings-container" style="max-width: 800px; margin: 0 auto 40px auto; padding: 20px; background: var(--card-bg, #f8fafc); border-radius: 12px; border: 1px solid var(--border);">
-        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">⚙️ システム設定・データ管理</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
-            タスク管理データの保存、バックアップ、およびデータベースの完全初期化を行えます。
-        </p>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <button id="backupBtn" class="btn" style="background: #2563eb; color: white; display: flex; align-items: center; gap: 6px; font-weight: 500; padding: 8px 16px;">
-                📥 データをエクスポート (JSON)
-            </button>
-            <button id="resetBtn" class="btn" style="background: #dc2626; color: white; display: flex; align-items: center; gap: 6px; font-weight: 500; padding: 8px 16px;">
-                ⚠️ 全データを完全リセット
-            </button>
-        </div>
-    </div>
-
-    <style>
+        /* ツリーマップエリア */
         #treemapContainer {
             position: relative;
             width: 100%;
-            height: 450px; /* 必要に応じて高さを調整してください */
-            background-color: var(--bg, #1e293b);
+            height: 480px;
+            background-color: var(--card-bg);
             border-radius: 12px;
             overflow: hidden;
             box-sizing: border-box;
+            border: 1px solid var(--border);
         }
 
+        /* ツリーマップノード（メモポップアップトリガー） */
         .treemap-node {
             position: absolute;
             box-sizing: border-box;
-            border: 2px solid var(--bg, #0f172a); /* 境界線を背景色と同化させて隙間を表現 */
-            border-radius: 6px;
+            border: 2.5px solid var(--bg); /* 境界線を背景色と同化させて隙間を作る */
+            border-radius: 8px;
             overflow: hidden;
             color: #ffffff;
             cursor: pointer;
@@ -465,13 +81,12 @@
             transform: scale(0.97);
         }
 
-        /* 完了済みノード（演出中）用 */
-        .treemap-node.shattering {
+        /* 完了済み（爆散中）ノード */
+        .treemap-node.shattering, .task-card.shattering {
             pointer-events: none;
-            box-shadow: 0 0 20px rgba(255,255,255,0.4);
+            box-shadow: 0 0 25px rgba(255,255,255,0.5);
         }
 
-        /* テキストの折り返しと溢れ防止 */
         .node-title {
             width: 100%;
             font-weight: 800;
@@ -479,7 +94,7 @@
             word-break: break-all;
             overflow: hidden;
             display: -webkit-box;
-            -webkit-line-clamp: 3; /* 3行まで表示 */
+            -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
         }
 
@@ -506,13 +121,56 @@
             text-overflow: ellipsis;
         }
 
-        /* 爆散エフェクト用 */
+        /* タグ履歴履歴バッジ */
+        .tag-history-item {
+            cursor: pointer;
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            background: var(--card-bg);
+            transition: all 0.2s;
+        }
+        .tag-history-item:hover {
+            transform: scale(1.05);
+        }
+
+        /* モーダルスタイル（メモ編集画面） */
+        .modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(4px);
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            width: 90%;
+            max-width: 500px;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            padding: 24px;
+            transform: scale(0.95);
+            transition: transform 0.2s ease;
+        }
+        .modal-backdrop.active {
+            display: flex;
+        }
+        .modal-backdrop.active .modal-content {
+            transform: scale(1);
+        }
+
+        /* スパーク＆破片演出パーツ */
         .shatter-piece {
             position: fixed;
             pointer-events: none;
             z-index: 9999;
             will-change: transform, opacity;
-            border-radius: 4px;
+            border-radius: 3px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
@@ -524,10 +182,189 @@
             will-change: transform, opacity;
         }
     </style>
+</head>
+<body class="p-6">
+
+    <header class="max-w-6xl mx-auto flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-black tracking-tight flex items-center gap-2">
+                🚀 Dynamic Task Treemap
+            </h1>
+            <p class="text-xs text-[var(--text-muted)] mt-1">
+                視覚的に優先度を支配する。タスクをクリックすると、進捗メモの閲覧・更新が行えます。
+            </p>
+        </div>
+        <button id="themeToggle" class="btn p-3 bg-[var(--card-bg)] border border-[var(--border)] text-xl rounded-xl">
+            🌓
+        </button>
+    </header>
+
+    <main class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <div class="space-y-6 lg:col-span-1">
+            
+            <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-sm">
+                <h2 class="text-lg font-bold mb-4 flex items-center gap-2">📥 タスク新規登録</h2>
+                <form action="/tasks" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-[var(--text-muted)] mb-1">📝 タスク名</label>
+                        <input type="text" name="title" required placeholder="今すぐやることを入力..." class="w-full p-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-[var(--text-muted)] mb-1">📅 期限設定</label>
+                            <input type="datetime-local" id="defaultDeadline" name="deadline" required class="w-full p-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-[var(--text-muted)] mb-1">🚨 重要度</label>
+                            <select name="importance" class="w-full p-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="3">🔥 高 (High)</option>
+                                <option value="2">⚡ 中 (Medium)</option>
+                                <option value="1">🌱 低 (Low)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="col-span-2">
+                            <label class="block text-xs font-semibold text-[var(--text-muted)] mb-1">🏷️ 分類タグ</label>
+                            <input type="text" id="tagInput" name="tag" placeholder="開発, 買い物など" class="w-full p-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-[var(--text-muted)] mb-1">🎨 カラー</label>
+                            <input type="color" id="colorInput" name="color" value="#64748b" class="w-full p-1 h-[46px] bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm outline-none cursor-pointer">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <span class="block text-xs font-semibold text-[var(--text-muted)] mb-1">💡 最近のタグ履歴</span>
+                        <div id="tagHistory" class="flex flex-wrap gap-1.5 mt-1"></div>
+                    </div>
+
+                    <button type="submit" class="btn w-full py-3 bg-indigo-600 text-white font-bold rounded-lg mt-2 text-sm">
+                        🚀 タスクを射出する
+                    </button>
+                </form>
+            </div>
+
+            <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-sm">
+                <h2 class="text-lg font-bold mb-4 flex items-center gap-2">📊 期限内達成率 (オンタイム率)</h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span>📅 直近1週間の完了タスク</span>
+                            <span id="weekRateVal" class="font-bold">0%</span>
+                        </div>
+                        <div class="w-full bg-[var(--bg)] h-2.5 rounded-full overflow-hidden">
+                            <div id="weekRateBar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span>📅 直近30日間の完了タスク</span>
+                            <span id="monthRateVal" class="font-bold">0%</span>
+                        </div>
+                        <div class="w-full bg-[var(--bg)] h-2.5 rounded-full overflow-hidden">
+                            <div id="monthRateBar" class="bg-indigo-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="lg:col-span-2 space-y-6">
+            
+            <div class="relative">
+                <div id="treemapContainer"></div>
+                <div id="detailOverlay" class="absolute bottom-4 left-4 right-4 bg-slate-900/90 text-white p-3 rounded-lg text-xs leading-relaxed border border-slate-700 pointer-events-none hidden" style="z-index: 100;"></div>
+            </div>
+
+            <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl">
+                <h2 class="text-lg font-bold mb-4">🗂 タスク管理リスト</h2>
+                <div id="taskList" class="space-y-3">
+                    <% if (tasks.length === 0) { %>
+                        <p class="text-sm text-center text-[var(--text-muted)] py-6">タスクが登録されていません。上のフォームから登録しましょう！</p>
+                    <% } else { %>
+                        <% tasks.forEach(task => { %>
+                            <div id="task-<%= task.id %>" class="task-card flex flex-col md:flex-row md:items-center justify-between p-4 bg-[var(--bg)] border border-[var(--border)] rounded-xl gap-4">
+                                <div class="flex items-start gap-3">
+                                    <span class="w-3.5 h-3.5 rounded-full mt-1 shrink-0" style="background-color: <%= task.color || '#64748b' %>;"></span>
+                                    <div>
+                                        <h3 class="font-bold text-sm <%= task.is_completed ? 'line-through opacity-50' : '' %>"><%= task.title %></h3>
+                                        <div class="flex flex-wrap gap-2 mt-1.5 items-center text-xs text-[var(--text-muted)]">
+                                            <% if (task.tag) { %>
+                                                <span class="px-1.5 py-0.5 rounded border border-[var(--border)] text-[10px] font-bold">🏷️ <%= task.tag %></span>
+                                            <% } %>
+                                            <span>📅 期限: <%= new Date(task.deadline).toLocaleString() %></span>
+                                            <% if (task.is_completed && task.completed_at) { %>
+                                                <span class="text-emerald-500 font-bold">✓ 完了日: <%= new Date(task.completed_at).toLocaleString() %></span>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center gap-2 self-end md:self-auto">
+                                    <button class="btn px-3 py-1.5 text-xs bg-slate-700 text-white rounded-md flex items-center gap-1 font-semibold memo-btn" data-id="<%= task.id %>" data-title="<%= task.title %>">
+                                        📝 メモ
+                                    </button>
+                                    
+                                    <% if (task.is_completed) { %>
+                                        <button class="btn toggle-btn px-3 py-1.5 text-xs bg-amber-600 text-white rounded-md flex items-center gap-1 font-semibold" data-id="<%= task.id %>" data-status="false">
+                                            ↩ 未完了に戻す
+                                        </button>
+                                    <% } else { %>
+                                        <button class="btn toggle-btn px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-md flex items-center gap-1 font-semibold" data-id="<%= task.id %>" data-status="true">
+                                            ✓ 完了にする
+                                        </button>
+                                    <% } %>
+                                    
+                                    <button class="btn delete-btn px-2.5 py-1.5 text-xs bg-rose-600 text-white rounded-md" data-id="<%= task.id %>">
+                                        🗑 削除
+                                    </button>
+                                </div>
+                            </div>
+                        <% }) %>
+                    <% } %>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <div id="memoModal" class="modal-backdrop">
+        <div class="modal-content">
+            <h3 id="modalTaskTitle" class="text-base font-black border-b border-[var(--border)] pb-2.5 mb-4 text-[var(--text)]">タスクメモ</h3>
+            <div>
+                <label class="block text-xs font-semibold text-[var(--text-muted)] mb-1">🖊️ メモ内容</label>
+                <textarea id="modalMemoTextarea" rows="6" placeholder="進捗状況、参考リンク、アイディアなど自由にメモを残しましょう..." class="w-full p-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-indigo-500 outline-none resize-none"></textarea>
+            </div>
+            <div class="flex justify-end gap-2 mt-5">
+                <button id="closeModalBtn" class="btn px-4 py-2 bg-slate-700 text-white text-xs font-bold rounded-lg">キャンセル</button>
+                <button id="saveModalBtn" class="btn px-5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg">💾 保存する</button>
+            </div>
+        </div>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid var(--border); margin: 60px 0 20px 0;">
+    <div class="settings-container animate-fade-in" style="max-width: 800px; margin: 0 auto 40px auto; padding: 20px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border);">
+        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; font-weight: 700;">⚙️ システム設定・データ管理</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
+            タスク管理データの保存、バックアップ、およびデータベースの完全初期化を行えます。
+        </p>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button id="backupBtn" class="btn text-xs" style="background: #2563eb; color: white; display: flex; align-items: center; gap: 6px; font-weight: 600; padding: 10px 18px; border-radius: 8px;">
+                📥 データをエクスポート (JSON)
+            </button>
+            <button id="resetBtn" class="btn text-xs" style="background: #dc2626; color: white; display: flex; align-items: center; gap: 6px; font-weight: 600; padding: 10px 18px; border-radius: 8px;">
+                ⚠️ 全データを完全リセット
+            </button>
+        </div>
+    </div>
 
     <script>
         // 1. サーバーから渡されたタスクデータをフロントエンドの変数に代入
         let allTasks = <%- JSON.stringify(tasks) %>;
+        let currentTargetTaskId = null; // メモ編集ターゲット
 
         // 初期ロード処理
         window.addEventListener('load', () => {
@@ -539,6 +376,7 @@
             calculateRates();
             renderTreemap();
             setupSettingsEvents();
+            setupMemoEvents();
         });
 
         // A. テーマ切り替え
@@ -614,44 +452,51 @@
             document.getElementById('monthRateBar').style.width = `${monthRate}%`;
         }
 
-        // D. リスト側イベントリスナー
+        // D. リスト内イベントリスナーの監視
         document.getElementById('taskList').addEventListener('click', async (e) => {
             const toggleBtn = e.target.closest('.toggle-btn');
             const deleteBtn = e.target.closest('.delete-btn');
+            const memoBtn = e.target.closest('.memo-btn');
 
             if (toggleBtn) {
                 const id = Number(toggleBtn.getAttribute('data-id'));
                 const targetStatus = toggleBtn.getAttribute('data-status') === 'true';
-                await toggleTaskStatus(id, targetStatus, null); // リスト側からの更新
+                await toggleTaskStatus(id, targetStatus);
             }
             
             if (deleteBtn) {
                 const id = Number(deleteBtn.getAttribute('data-id'));
                 await deleteTask(id);
             }
+
+            if (memoBtn) {
+                const id = Number(memoBtn.getAttribute('data-id'));
+                const title = memoBtn.getAttribute('data-title');
+                openMemoModal(id, title);
+            }
         });
 
-        // 🎇 超進化：ツリーマップパネル爆散＆フィジカル粒子スパーク演出
-        function triggerTreemapShatter(element, baseColor) {
+        // 🎇 超進化：物理計算されたツリーマップ爆散スパークエフェクト
+        function triggerShatterAndSparkles(targetElement, baseColor) {
             return new Promise((resolve) => {
-                const rect = element.getBoundingClientRect();
+                const rect = targetElement.getBoundingClientRect();
                 const centerX = rect.left + window.scrollX + rect.width / 2;
                 const centerY = rect.top + window.scrollY + rect.height / 2;
 
-                // 1. ツリーマップ上のパネルを少し膨らませてから消すアニメーション
-                element.classList.add('shattering');
-                element.style.transition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                element.style.transform = 'scale(1.08) rotate(1deg)';
-                element.style.opacity = '0';
-                element.style.filter = 'blur(2px)';
+                // ツリーマップ自体を拡大・透過させて消滅へのフェードアウト
+                targetElement.classList.add('shattering');
+                targetElement.style.transition = 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                targetElement.style.transform = 'scale(1.1) rotate(2deg)';
+                targetElement.style.opacity = '0';
+                targetElement.style.filter = 'blur(3px)';
 
-                const shardCount = 35; // 飛び散る破片の数
-                const sparkleCount = 60; // 飛び散る光子数
+                const shardCount = 35; // 破片の総数
+                const sparkleCount = 65; // スパークの総数
                 let activeElements = shardCount + sparkleCount;
 
-                const colors = [baseColor, '#ffffff', '#ffd700', '#ff4757', '#00d2fc'];
+                const colors = [baseColor, '#ffffff', '#ffd700', '#ff4365', '#00d2fc'];
 
-                // --- 2. 3Dポリゴン破片の生成 ---
+                // --- 1. 破片パーツ (Shards) ---
                 for (let i = 0; i < shardCount; i++) {
                     const shard = document.createElement('div');
                     shard.className = 'shatter-piece';
@@ -662,23 +507,21 @@
                     shard.style.height = `${h}px`;
                     shard.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
                     
-                    // 鋭利な破片をクリップパスで構築
+                    // ポリゴン変形
                     shard.style.clipPath = `polygon(${Math.random()*20}% ${Math.random()*20}%, ${80+Math.random()*20}% ${Math.random()*20}%, ${80+Math.random()*20}% ${80+Math.random()*20}%, ${Math.random()*20}% ${80+Math.random()*20}%)`;
 
-                    // パネル全体の領域から均等に初期配置を散らす
                     const startX = rect.left + window.scrollX + (Math.random() * rect.width);
                     const startY = rect.top + window.scrollY + (Math.random() * rect.height);
                     shard.style.left = `${startX}px`;
                     shard.style.top = `${startY}px`;
                     document.body.appendChild(shard);
 
-                    // 物理シミュレーション変数
                     const angle = Math.random() * Math.PI * 2;
-                    const force = Math.random() * 14 + 6;
+                    const force = Math.random() * 15 + 6;
                     let vx = Math.cos(angle) * force;
-                    let vy = Math.sin(angle) * force - 4; // 上方向に少し吹き飛ぶ
+                    let vy = Math.sin(angle) * force - 5; // 上方へ飛び出す物理
                     let rot = Math.random() * 360;
-                    let rotSpeed = (Math.random() - 0.5) * 20;
+                    let rotSpeed = (Math.random() - 0.5) * 24;
                     let opacity = 1;
                     const gravity = 0.35;
 
@@ -696,7 +539,7 @@
                         px += vx;
                         py += vy;
                         rot += rotSpeed;
-                        opacity -= 0.018;
+                        opacity -= 0.016;
 
                         shard.style.left = `${px}px`;
                         shard.style.top = `${py}px`;
@@ -708,7 +551,7 @@
                     requestAnimationFrame(animShard);
                 }
 
-                // --- 3. 高密度スパーク（火花）の生成 ---
+                // --- 2. 高熱スパーク (Sparkles) ---
                 for (let i = 0; i < sparkleCount; i++) {
                     const p = document.createElement('div');
                     p.className = 'sparkle-particle';
@@ -717,18 +560,18 @@
                     p.style.width = `${size}px`;
                     p.style.height = `${size}px`;
                     p.style.background = colors[Math.floor(Math.random() * colors.length)];
-                    p.style.boxShadow = `0 0 8px ${colors[Math.floor(Math.random() * colors.length)]}`;
+                    p.style.boxShadow = `0 0 10px ${colors[Math.floor(Math.random() * colors.length)]}`;
                     
                     p.style.left = `${centerX}px`;
                     p.style.top = `${centerY}px`;
                     document.body.appendChild(p);
 
                     const angle = Math.random() * Math.PI * 2;
-                    const speed = Math.random() * 16 + 8;
+                    const speed = Math.random() * 17 + 8;
                     let vx = Math.cos(angle) * speed;
                     let vy = Math.sin(angle) * speed;
                     let opacity = 1;
-                    const gravity = 0.22;
+                    const gravity = 0.24;
 
                     let px = centerX;
                     let py = centerY;
@@ -743,7 +586,7 @@
                         vy += gravity;
                         px += vx;
                         py += vy;
-                        opacity -= 0.022;
+                        opacity -= 0.02;
 
                         p.style.left = `${px}px`;
                         p.style.top = `${py}px`;
@@ -757,8 +600,8 @@
             });
         }
 
-        // ステータスの切り替え
-        async function toggleTaskStatus(id, targetStatus, triggerTreemapNode) {
+        // タスク完了処理＆爆破演出の制御
+        async function toggleTaskStatus(id, targetStatus) {
             try {
                 const isCompletedValue = Boolean(targetStatus);
                 const response = await fetch(`/tasks/${id}`, {
@@ -771,13 +614,13 @@
                     if (isCompletedValue === true) {
                         const originalTask = allTasks.find(t => t.id === id);
                         
-                        // エフェクトの対象（引数にツリーマップノードがあればそれを優先、無ければ該当のツリーマップノードをDOM検索）
-                        const targetNode = triggerTreemapNode || document.getElementById(`tree-node-${id}`);
+                        // 【変更点】爆発させるのはリスト側ではなく「ツリーマップ上のパネル」！
+                        const treemapNode = document.getElementById(`tree-node-${id}`);
                         
-                        if (targetNode) {
+                        if (treemapNode) {
                             const nodeColor = originalTask && originalTask.color && originalTask.color !== '#64748b' ? originalTask.color : '#4f46e5';
-                            // ツリーマップ上のパネルを確実に爆破！
-                            await triggerTreemapShatter(targetNode, nodeColor);
+                            // ツリーマップ側のパネルを爆破
+                            await triggerShatterAndSparkles(treemapNode, nodeColor);
                         }
                     }
                     location.reload();
@@ -796,9 +639,9 @@
             try {
                 const response = await fetch(`/tasks/${id}`, { method: 'DELETE' });
                 if (response.ok) {
-                    const targetNode = document.getElementById(`tree-node-${id}`);
-                    if (targetNode) {
-                        await triggerTreemapShatter(targetNode, '#ef4444');
+                    const treemapNode = document.getElementById(`tree-node-${id}`);
+                    if (treemapNode) {
+                        await triggerShatterAndSparkles(treemapNode, '#ef4444');
                     }
                     location.reload();
                 } else {
@@ -809,7 +652,76 @@
             }
         }
 
-        // ⚙️ 設定メニューの機能実装
+        // 📝 【新規追加】 メモ専用モーダル管理システム
+        const memoModal = document.getElementById('memoModal');
+        const modalTaskTitle = document.getElementById('modalTaskTitle');
+        const modalMemoTextarea = document.getElementById('modalMemoTextarea');
+
+        async function openMemoModal(taskId, taskTitle) {
+            currentTargetTaskId = taskId;
+            modalTaskTitle.innerText = `🗂 【メモ】${taskTitle}`;
+            modalMemoTextarea.value = "読み込み中...";
+            
+            // モーダルを開く
+            memoModal.classList.add('active');
+            modalMemoTextarea.focus();
+
+            try {
+                const response = await fetch(`/tasks/${taskId}/memos`);
+                if (response.ok) {
+                    const memos = await response.json();
+                    if (memos.length > 0) {
+                        modalMemoTextarea.value = memos[0].content; // 最新のメモを設定
+                    } else {
+                        modalMemoTextarea.value = ""; // メモがまだ無ければ空欄にする
+                    }
+                } else {
+                    modalMemoTextarea.value = "メモの読み込みに失敗しました。";
+                }
+            } catch (err) {
+                console.error("メモ読み込みエラー:", err);
+                modalMemoTextarea.value = "通信エラーが発生しました。";
+            }
+        }
+
+        function closeMemoModal() {
+            memoModal.classList.remove('active');
+            currentTargetTaskId = null;
+        }
+
+        function setupMemoEvents() {
+            document.getElementById('closeModalBtn').addEventListener('click', closeMemoModal);
+            
+            // 枠外をクリックしたら閉じる
+            memoModal.addEventListener('click', (e) => {
+                if (e.target === memoModal) closeMemoModal();
+            });
+
+            // メモ保存処理
+            document.getElementById('saveModalBtn').addEventListener('click', async () => {
+                if (!currentTargetTaskId) return;
+                
+                const content = modalMemoTextarea.value;
+                try {
+                    const response = await fetch(`/tasks/${currentTargetTaskId}/memos`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content })
+                    });
+
+                    if (response.ok) {
+                        closeMemoModal();
+                    } else {
+                        alert('メモの保存に失敗しました。');
+                    }
+                } catch (err) {
+                    console.error("メモ保存エラー:", err);
+                    alert('通信エラーによりメモを保存できませんでした。');
+                }
+            });
+        }
+
+        // ⚙️ 設定メニュー
         function setupSettingsEvents() {
             document.getElementById('backupBtn').addEventListener('click', () => {
                 try {
@@ -822,32 +734,30 @@
                     downloadAnchor.click();
                     downloadAnchor.remove();
                 } catch (err) {
-                    alert('バックアップのエクスポートに失敗しました。');
+                    alert('データのバックアップ処理中にエラーが発生しました。');
                 }
             });
 
             document.getElementById('resetBtn').addEventListener('click', async () => {
                 if (!confirm("⚠️ 【超重要警告】\nデータベース内のすべてのタスクデータが「完全に」消去されます。\nこの操作は元に戻せません。本当によろしいですか？")) return;
-                if (!confirm("本当にすべて消去してもよろしいですか？")) return;
+                if (!confirm("完全に初期化してもよろしいですか？")) return;
 
                 try {
                     const response = await fetch('/tasks', { method: 'DELETE' });
                     if (response.ok) {
-                        alert('すべてのタスクデータが初期化されました。');
+                        alert('すべてのタスクデータがリセットされました。');
                         location.reload();
                     } else {
                         const errText = await response.text();
-                        alert(`リセットに失敗しました。\nサーバー応答: ${errText}`);
+                        alert(`リセット失敗: ${errText}`);
                     }
                 } catch (err) {
-                    console.error("リセット中の通信エラー:", err);
-                    alert('サーバーとの通信に失敗しました。');
+                    console.error("通信エラー:", err);
                 }
             });
         }
 
-        // 📈 E. 再設計：絶対領域を完全に二分割して敷き詰める決定論的ツリーマップアルゴリズム (Binary Partition Treemap)
-        // 重なりが完全にゼロになり、コンテナ空間を1pxも余さず100%分割します。
+        // 📈 E. 新設計：二分木パーティショニング（Binary Partition）による完全分割型ツリーマップ
         function computeBinaryTreemap(nodes, x, y, width, height) {
             if (nodes.length === 0) return [];
             if (nodes.length === 1) {
@@ -860,7 +770,6 @@
                 }];
             }
 
-            // 1. ノードをできる限り重み（面積）が均等になるように2つのグループに分ける
             const totalWeight = nodes.reduce((sum, n) => sum + n.weight, 0);
             let halfWeight = 0;
             let splitIndex = 0;
@@ -884,14 +793,13 @@
 
             const result = [];
 
-            // 2. 矩形の長辺に合わせて縦分割または横分割を行う
             if (width >= height) {
-                // 横幅のほうが長い ➔ 左右（縦の境界線）に分割
+                // 横分割 (左右)
                 const leftWidth = width * ratio;
                 result.push(...computeBinaryTreemap(leftGroup, x, y, leftWidth, height));
                 result.push(...computeBinaryTreemap(rightGroup, x + leftWidth, y, width - leftWidth, height));
             } else {
-                // 高さのほうが長い ➔ 上下（横の境界線）に分割
+                // 縦分割 (上下)
                 const topHeight = height * ratio;
                 result.push(...computeBinaryTreemap(leftGroup, x, y, width, topHeight));
                 result.push(...computeBinaryTreemap(rightGroup, x, y + topHeight, width, height - topHeight));
@@ -907,7 +815,7 @@
             
             const activeTasks = allTasks.filter(t => !t.is_completed);
             if (activeTasks.length === 0) {
-                container.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted);">🎉 すべてのタスクを完了しました！素晴らしいです！</div>';
+                container.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted);">🎉 すべてのタスクが完了しました！素晴らしい！</div>';
                 overlay.style.display = 'none';
                 return;
             }
@@ -915,7 +823,7 @@
             const now = new Date();
             const labels = {3: '高', 2: '中', 1: '低'};
 
-            // 重み付け（面積比）の計算
+            // 重みの計算
             const scoredTasks = activeTasks.map(task => {
                 const deadline = new Date(task.deadline);
                 const diffTime = deadline.getTime() - now.getTime();
@@ -933,12 +841,12 @@
                 }
 
                 return { ...task, weight, diffTime };
-            }).sort((a, b) => b.weight - a.weight); // 面積が大きい順にソート
+            }).sort((a, b) => b.weight - a.weight);
 
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
 
-            // 二分木パーティショニングによる完全重なりゼロ分割レイアウト
+            // 完全マッピング型レイアウトを算出
             const layoutedNodes = computeBinaryTreemap(scoredTasks, 0, 0, containerWidth, containerHeight);
 
             layoutedNodes.forEach(layout => {
@@ -949,25 +857,24 @@
                 if (layout.color && layout.color !== '#64748b') {
                     node.style.backgroundColor = layout.color;
                 } else {
-                    node.style.backgroundColor = 'var(--default-node, #4f46e5)';
+                    node.style.backgroundColor = 'var(--default-node)';
                 }
 
-                // 隙間無く配置する絶対座標のマッピング
+                // 計算座標をピクセルにそのまま代入（重複は原理的に発生しません）
                 node.style.left = `${layout.x}px`;
                 node.style.top = `${layout.y}px`;
                 node.style.width = `${layout.w}px`;
                 node.style.height = `${layout.h}px`;
 
-                // 領域のサイズに応じたフォントサイズの適応
                 const area = layout.w * layout.h;
                 let fontSize = 0.8;
-                if (area > 50000) fontSize = 1.3;
-                else if (area > 20000) fontSize = 1.05;
+                if (area > 50000) fontSize = 1.35;
+                else if (area > 20000) fontSize = 1.1;
                 else if (area < 9000) fontSize = 0.65;
 
                 node.style.fontSize = `${fontSize}rem`;
 
-                // 期限カウントダウン計算
+                // 残り時間のフォーマット
                 let timeStatusText = "";
                 const diffMs = layout.diffTime;
 
@@ -988,8 +895,8 @@
 
                 const tagLabel = layout.tag ? `[${layout.tag}]` : 'なし';
 
-                // 要素をレンダリング（面積が極端に小さいノードは文字溢れを防ぐ）
-                if (area > 8000) {
+                // サイズに合わせた内包テキスト配置
+                if (area > 8500) {
                     node.innerHTML = `
                         <div class="node-title">${layout.title}</div>
                         <div class="node-meta">
@@ -998,20 +905,16 @@
                         </div>
                     `;
                 } else {
-                    // 極小ノードはタイトルのみシンプルに表示
                     node.innerHTML = `<div class="node-title" style="font-size: ${fontSize * 0.9}rem;">${layout.title}</div>`;
                 }
 
-                // ツリーマップのノード自体をクリックしたら即完了処理＆爆散！
-                node.addEventListener('click', async (e) => {
+                // 【機能変更】ツリーマップのノードをクリックしたらメモポップアップを開く
+                node.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    // 完了確認
-                    if (confirm(`「${layout.title}」を完了にしますか？`)) {
-                        await toggleTaskStatus(layout.id, true, node);
-                    }
+                    openMemoModal(layout.id, layout.title);
                 });
 
-                // ホバー時の詳細オーバーレイ
+                // ホバー時のツールチップ表示
                 node.addEventListener('mouseenter', () => {
                     overlay.innerHTML = `
                         <strong>🗂 タスク名:</strong> ${layout.title}<br>
