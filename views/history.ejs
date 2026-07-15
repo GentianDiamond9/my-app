@@ -68,20 +68,15 @@
   <body>
     <canvas id="historyCanvas"></canvas>
 
-    <div class="overlay-ui flex flex-col h-full justify-between p-6">
-      <header
-        class="flex justify-between items-center bg-slate-900/80 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 interactive-element"
-      >
-        <div>
-          <h1
-            class="text-2xl font-black tracking-tight text-white flex items-center gap-2"
-          >
+    <header class="flex justify-between items-center bg-slate-900/80 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 interactive-element">
+    <div>
+        <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2">
             🌌 過去の歴史 (Shattered Universe)
-          </h1>
-          <p class="text-xs text-slate-400 mt-0.5">
-            砕け散った過去のタスク（1タスクにつき1かけら）。面積は重要度に比例し、古いタスクほどゆっくり回転します。
-          </p>
-        </div>
+        </h1>
+        <p class="text-xs text-slate-400 mt-0.5">
+            あなたが今までにこなしたタスクたちです。
+        </p>
+    </div>
         <div class="flex items-center gap-3">
           <a
             href="/"
@@ -226,7 +221,7 @@
                   this.vy += Math.sin(repelAngle) * force * 1.8;
 
                   // マウスで弾くと一時的に激しくスピン（重要度が小さい軽いかけらほどよく回るように設計）
-                  const spinAcceleration = (force * 0.18) / Math.sqrt(this.importance);
+                  const spinAcceleration = (force * 0.03) / Math.sqrt(this.importance);
                   if (this.baseRotationSpeed > 0) {
                       this.currentRotationSpeed += spinAcceleration;
                   } else {
