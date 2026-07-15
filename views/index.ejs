@@ -1,103 +1,84 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TreeMap Tasks Premium</title>
+    <meta charset="UTF-8"><title>TreeMap Tasks Ultimate</title>
     <style>
-        /* --- スタイル（お主のデザインを継承） --- */
-        :root {
-            --bg-color: #f8f9fa; --card-bg: #ffffff; --text-color: #212529; --text-muted: #6c757d;
-            --border-color: #dee2e6; --primary-color: #4f46e5; --success-color: #10b981;
-            --warning-color: #f59e0b; --danger-color: #ef4444; --default-node-color: #64748b;
-        }
-        [data-theme="dark"] {
-            --bg-color: #0f172a; --card-bg: #1e293b; --text-color: #f8fafc;
-            --text-muted: #94a3b8; --border-color: #334155; --primary-color: #6366f1;
-        }
-        body { font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); max-width: 1200px; margin: 0 auto; padding: 20px; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        /* --- スタイル継承 & 追加 --- */
+        :root { --bg: #f8f9fa; --card: #ffffff; --text: #212529; --primary: #4f46e5; --danger: #ef4444; }
+        [data-theme="dark"] { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); max-width: 1200px; margin: 0 auto; padding: 20px; }
         .main-container { display: grid; grid-template-columns: 1fr; gap: 24px; }
         @media(min-width: 768px) { .main-container { grid-template-columns: 1fr 1.5fr; } }
-        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .task-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color); }
-        .completed { text-decoration: line-through; opacity: 0.5; }
-        .badge { padding: 2px 6px; font-size: 0.75rem; border-radius: 4px; color: white; margin-right: 5px; }
-        .badge-3 { background-color: var(--danger-color); }
-        .badge-2 { background-color: var(--warning-color); }
-        .badge-1 { background-color: var(--primary-color); }
-        .treemap-wrapper { width: 100%; height: 500px; background: var(--bg-color); border-radius: 8px; position: relative; overflow: hidden; border: 1px solid var(--border-color); }
-        .treemap-node { position: absolute; box-sizing: border-box; border: 1px solid var(--card-bg); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; cursor: pointer; transition: 0.2s; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
-        .treemap-node:hover { transform: scale(0.98); filter: brightness(1.1); }
-        form { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
-        input, select, button { padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); }
-        .btn-primary { background: var(--primary-color); color: white; font-weight: bold; cursor: pointer; }
-        .stat-val { font-size: 1.8rem; font-weight: bold; color: var(--primary-color); }
+        .card { background: var(--card); border: 1px solid #dee2e6; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+        .treemap-wrapper { width: 100%; height: 500px; background: #eee; border-radius: 8px; position: relative; overflow: hidden; }
+        .treemap-node { position: absolute; box-sizing: border-box; border: 2px solid var(--card); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; cursor: pointer; transition: transform 0.2s; text-shadow: 1px 1px 3px rgba(0,0,0,0.7); overflow: hidden; }
+        
+        /* 弾け飛ぶパーティクルのスタイル */
+        .particle { position: fixed; pointer-events: none; z-index: 9999; border-radius: 2px; animation: fly 0.8s ease-out forwards; }
+        @keyframes fly {
+            to { transform: translate(var(--dx), var(--dy)) rotate(360deg); opacity: 0; }
+        }
+
+        .tag-history-item { cursor: pointer; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; border: 1px solid #ddd; margin: 2px; display: inline-block; }
+        input, select { margin-bottom: 8px; padding: 8px; border-radius: 6px; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
-    <header>
-        <h1>TreeMap Tasks Premium</h1>
-        <button id="themeToggle" style="cursor:pointer; border-radius:20px; padding:5px 15px;">🌓 テーマ切り替え</button>
+    <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h1>TreeMap Ultimate 🚀</h1>
+        <button id="themeToggle">🌓 テーマ切り替え</button>
     </header>
 
     <div class="main-container">
-        <!-- 左カラム: リストと統計 -->
         <div class="left-col">
             <div class="card">
-                <h2>タスクの一覧</h2>
+                <h2>タスク管理</h2>
                 <div id="taskList">
                     <% tasks.forEach(task => { %>
-                        <div class="task-item">
-                            <div>
-                                <div class="<%= task.is_completed ? 'completed' : '' %>">
-                                    <span class="badge badge-<%= task.importance %>">重:<%= task.importance %></span>
-                                    <strong><%= task.title %></strong>
-                                </div>
-                                <div style="font-size: 0.8rem; color: var(--text-muted);">
-                                    ⏳ <%= new Date(task.deadline).toLocaleString() %>
-                                </div>
+                        <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #eee;">
+                            <div class="<%= task.is_completed ? 'completed' : '' %>">
+                                <strong><%= task.title %></strong>
+                                <% if(task.tag) { %><span style="font-size:0.7rem; background:#eee; padding:2px 6px; border-radius:10px; color:#333; margin-left:5px;">🏷️ <%= task.tag %></span><% } %>
+                                <div style="font-size:0.7rem; color:gray;">⏳ <%= new Date(task.deadline).toLocaleString() %></div>
                             </div>
                             <div>
-                                <button class="toggle-btn" data-id="<%= task.id %>" data-status="<%= !task.is_completed %>" style="cursor:pointer;">
+                                <button class="toggle-btn" data-id="<%= task.id %>" data-status="<%= !task.is_completed %>" data-importance="<%= task.importance %>">
                                     <%= task.is_completed ? '戻す' : '完了' %>
                                 </button>
-                                <button class="delete-btn" data-id="<%= task.id %>" style="background:var(--danger-color); color:white; border:none; cursor:pointer;">削除</button>
+                                <button class="delete-btn" data-id="<%= task.id %>" style="color:red;">削除</button>
                             </div>
                         </div>
                     <% }) %>
                 </div>
 
-                <form action="/tasks" method="POST">
-                    <input type="text" name="title" placeholder="新しいタスクを入力" required>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="datetime-local" name="deadline" style="flex: 2;" required>
-                        <select name="importance" style="flex: 1;">
-                            <option value="3">重要度: 高</option>
-                            <option value="2">重要度: 中</option>
-                            <option value="1">重要度: 低</option>
-                        </select>
+                <form action="/tasks" method="POST" style="display:flex; flex-direction:column; margin-top:20px;">
+                    <input type="text" name="title" placeholder="タスク名" required>
+                    <input type="datetime-local" name="deadline" required>
+                    <select name="importance">
+                        <option value="3">重要度: 高</option><option value="2">重要度: 中</option><option value="1">重要度: 低</option>
+                    </select>
+                    <div id="tagHistory" style="margin-bottom:8px;">
+                        <!-- JSで最近のタグを表示 -->
                     </div>
-                    <button type="submit" class="btn-primary">タスクを追加</button>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="tagInput" name="tag" placeholder="タグ" style="flex:2;">
+                        <input type="color" id="colorInput" name="color" value="#4f46e5" style="flex:1; height:40px;">
+                    </div>
+                    <button type="submit" style="background:#4f46e5; color:white; font-weight:bold; cursor:pointer;">追加</button>
                 </form>
             </div>
 
             <div class="card">
-                <h2>期限内達成率</h2>
-                <div style="display: flex; justify-content: space-around; text-align: center;">
-                    <div><div style="font-size: 0.8rem;">過去1週間</div><div class="stat-val"><%= stats.weekRate %>%</div></div>
-                    <div><div style="font-size: 0.8rem;">過去1か月</div><div class="stat-val"><%= stats.monthRate %>%</div></div>
+                <h2>達成率</h2>
+                <div style="display:flex; justify-content:space-around; text-align:center;">
+                    <div>週: <%= stats.weekRate %>%</div><div>月: <%= stats.monthRate %>%</div>
                 </div>
             </div>
         </div>
 
-        <!-- 右カラム: マップ -->
         <div class="right-col">
             <div class="card">
                 <h2>重要度マップ</h2>
-                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
-                    優先度が高いタスクほど大きく表示されます！
-                </p>
                 <div id="treemap" class="treemap-wrapper"></div>
             </div>
         </div>
@@ -107,54 +88,96 @@
         const tasks = <%- JSON.stringify(tasks) %>;
         const container = document.getElementById('treemap');
 
+        // タグ履歴の生成
+        const tagHistory = document.getElementById('tagHistory');
+        const uniqueTags = [];
+        tasks.forEach(t => {
+            if(t.tag && !uniqueTags.find(x => x.tag === t.tag)) uniqueTags.push({tag: t.tag, color: t.color});
+        });
+        uniqueTags.slice(-5).forEach(item => {
+            const span = document.createElement('span');
+            span.className = 'tag-history-item';
+            span.style.borderColor = item.color;
+            span.innerText = item.tag;
+            span.onclick = () => {
+                document.getElementById('tagInput').value = item.tag;
+                document.getElementById('colorInput').value = item.color || '#4f46e5';
+            };
+            tagHistory.appendChild(span);
+        });
+
         function renderTreemap() {
             container.innerHTML = '';
             const pending = tasks.filter(t => !t.is_completed);
-            if (!pending.length) return;
-
             const now = new Date();
             const nodes = pending.map(t => {
-                const deadline = new Date(t.deadline);
-                const overdueDays = Math.max(0, (now - deadline) / (1000 * 60 * 60 * 24));
-                // 面積: 重要度 * (1 + 超過日数)
+                const overdueDays = Math.max(0, (now - new Date(t.deadline)) / (1000*60*60*24));
                 const value = t.importance * (1 + overdueDays);
                 return { ...t, value };
             });
-
             const total = nodes.reduce((s, n) => s + n.value, 0);
             let curX = 0;
             nodes.forEach(n => {
                 const w = (n.value / total) * container.offsetWidth;
                 const div = document.createElement('div');
                 div.className = 'treemap-node';
+                div.id = `node-${n.id}`;
                 div.style.left = `${curX}px`; div.style.width = `${w}px`; div.style.height = '100%';
-                div.style.backgroundColor = n.color || 'var(--primary-color)';
-                div.innerHTML = `<div style="font-weight:bold;">${n.title}</div><div style="font-size:0.7rem;">${Math.round(n.value * 10)/10}pt</div>`;
+                div.style.backgroundColor = n.color || '#4f46e5';
+                
+                // 面積に応じたフォントサイズ計算
+                const fontSize = Math.max(10, Math.min(w / 10, 24));
+                div.innerHTML = `
+                    <div style="font-weight:bold; font-size:${fontSize}px;">${n.title}</div>
+                    <div style="font-size:${fontSize*0.6}px;">${new Date(n.deadline).toLocaleDateString()}</div>
+                `;
                 container.appendChild(div);
                 curX += w;
             });
         }
 
+        // 弾け飛ぶ演出
+        function createBurst(x, y, color) {
+            for (let i = 0; i < 30; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = x + 'px'; p.style.top = y + 'px';
+                p.style.width = Math.random() * 10 + 5 + 'px';
+                p.style.height = p.style.width;
+                p.style.background = color;
+                p.style.setProperty('--dx', (Math.random() - 0.5) * 400 + 'px');
+                p.style.setProperty('--dy', (Math.random() - 0.5) * 400 + 'px');
+                document.body.appendChild(p);
+                setTimeout(() => p.remove(), 1000);
+            }
+        }
+
         document.addEventListener('click', async (e) => {
-            const id = e.target.dataset.id;
-            if (e.target.classList.contains('toggle-btn')) {
-                const is_completed = e.target.dataset.status === 'true';
+            const btn = e.target;
+            const id = btn.dataset.id;
+            if (btn.classList.contains('toggle-btn')) {
+                const is_completed = btn.dataset.status === 'true';
+                const importance = parseInt(btn.dataset.importance);
+
+                if (!is_completed && !confirm('完了したタスクを復活させますか？')) return;
+
+                if (is_completed && importance >= 2) {
+                    const node = document.getElementById(`node-${id}`);
+                    if (node) {
+                        const rect = node.getBoundingClientRect();
+                        createBurst(rect.left + rect.width/2, rect.top + rect.height/2, node.style.backgroundColor);
+                    }
+                }
+
                 await fetch(`/tasks/${id}`, {
                     method: 'PATCH', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ is_completed })
-                }).finally(() => location.href = "/");
+                }).finally(() => setTimeout(() => location.href = "/", 500));
             }
-            if (e.target.classList.contains('delete-btn')) {
-                if(confirm('削除しますか？')) {
-                    await fetch(`/tasks/${id}`, { method: 'DELETE' }).finally(() => location.href = "/");
-                }
+            if (btn.classList.contains('delete-btn')) {
+                if(confirm('削除しますか？')) await fetch(`/tasks/${id}`, { method: 'DELETE' }).finally(() => location.href = "/");
             }
         });
-
-        document.getElementById('themeToggle').onclick = () => {
-            const html = document.documentElement;
-            html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
-        };
 
         window.onload = renderTreemap;
         window.onresize = renderTreemap;

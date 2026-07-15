@@ -16,21 +16,22 @@ export class TaskController {
     }
   }
 
-  // POST /tasks
+  // create メソッドの中身を次のように書き換えるのじゃ
   async create(req: Request, res: Response): Promise<void> {
     try {
-      const { title, deadline, importance } = req.body;
+      const { title, deadline, importance, tag, color } = req.body; // tag と color を追加
 
-      // 簡単なバリデーション (C#の ModelState.IsValid のようなイメージ)
       if (!title || !deadline || importance === undefined) {
         res.status(400).json({ message: "Missing required fields" });
         return;
       }
 
-      const newTask = await taskService.createTask({
+      await taskService.createTask({
         title,
-        deadline: new Date(deadline), // 文字列からDate型へ変換
+        deadline: new Date(deadline),
         importance: Number(importance),
+        tag: tag || null, // 追加
+        color: color || null, // 追加
       });
 
       res.redirect("/");
