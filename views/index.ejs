@@ -17,6 +17,7 @@
             --success-color: #10b981;
             --warning-color: #f59e0b;
             --danger-color: #ef4444;
+            --default-node-color: #64748b; /* 指定なし時の灰色 */
         }
 
         [data-theme="dark"] {
@@ -27,6 +28,7 @@
             --border-color: #334155;
             --primary-color: #6366f1;
             --primary-hover: #4f46e5;
+            --default-node-color: #475569;
         }
 
         body {
@@ -111,6 +113,26 @@
         .badge-2 { background-color: #f59e0b; }
         .badge-1 { background-color: #3b82f6; }
 
+        /* タグ用のカスタムバッジ */
+        .tag-badge {
+            background-color: var(--border-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 1px 6px;
+            font-size: 0.75rem;
+            border-radius: 12px;
+            margin-left: 6px;
+        }
+
+        /* カラープレビューサークル */
+        .color-dot {
+            display: inline-block;
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            margin-top: 4px;
+        }
+
         /* --- ツリーマップ & オーバーレイ詳細 --- */
         .treemap-wrapper {
             width: 100%;
@@ -134,8 +156,8 @@
             text-align: center;
             overflow: hidden;
             transition: all 0.2s ease-in-out;
-            color: white; /* グラデーションの背景で見やすくするため白文字固定 */
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.6); /* 可読性確保 */
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
             cursor: pointer;
         }
         .treemap-node:hover {
@@ -144,22 +166,9 @@
             z-index: 10;
         }
 
-        .node-title {
-            font-weight: bold;
-            width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .node-size {
-            opacity: 0.9;
-            width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+        .node-title { font-weight: bold; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .node-size { opacity: 0.9; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        /* 詳細ポップアップ（オーバーレイ仕様） */
         .detail-overlay {
             position: absolute;
             bottom: 12px;
@@ -174,11 +183,12 @@
             display: none;
             z-index: 100;
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
-            pointer-events: none; /* マウスイベントを透過させてツリーマップホバーを邪魔しない */
+            pointer-events: none;
         }
 
         form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
         .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
         input, select {
             padding: 8px;
             border-radius: 6px;
@@ -186,6 +196,7 @@
             background-color: var(--card-bg);
             color: var(--text-color);
         }
+        input[type="color"] { padding: 2px; height: 38px; width: 100%; cursor: pointer; }
         .btn-primary { background-color: var(--primary-color); color: white; padding: 10px; font-weight: bold; border: none; border-radius: 6px;}
     </style>
 </head>
@@ -204,18 +215,27 @@
                     <% if (tasks.length === 0) { %>
                         <p style="color: var(--text-muted);">タスクはまだありません。</p>
                     <% } %>
-                    <% tasks.forEach(task => { 
-                        const labels = {3: '高', 2: '中', 1: '低'};
+                    <% 
+                        // 重複しない既存のタグ一覧を抽出して、datalist用の配列を作る
+                        const existingTags = [...new Set(tasks.map(t => t.tag).filter(Boolean))];
+                        tasks.forEach(task => { 
+                            const labels = {3: '高', 2: '中', 1: '低'};
                     %>
                         <div class="task-item" id="task-<%= task.id %>">
                             <div class="task-info">
                                 <span class="<%= task.is_completed ? 'completed' : '' %>" id="title-<%= task.id %>">
                                     <span class="badge badge-<%= task.importance %>">重要度: <%= labels[task.importance] %></span>
                                     <strong><%= task.title %></strong>
+                                    <% if (task.tag) { %>
+                                        <span class="tag-badge">🏷️ <%= task.tag %></span>
+                                    <% } %>
                                 </span>
                                 <span class="deadline-text" id="deadline-<%= task.id %>">
                                     ⏳ 期限: <%= new Date(task.deadline).toLocaleDateString() %>
                                 </span>
+                                <% if (task.color) { %>
+                                    <span class="color-dot" style="background-color: <%= task.color %>;"></span>
+                                <% } %>
                             </div>
                             <div id="actions-<%= task.id %>">
                                 <% if (task.is_completed) { %>
@@ -241,6 +261,23 @@
                         <label>期限</label>
                         <input type="date" name="deadline" required id="defaultDeadline">
                     </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>タグ（手入力 または 既存から選択）</label>
+                            <input type="text" name="tag" placeholder="例: 仕事, プライベート" list="tagSuggestions" autocomplete="off">
+                            <datalist id="tagSuggestions">
+                                <% existingTags.forEach(tag => { %>
+                                    <option value="<%= tag %>"></option>
+                                <% }) %>
+                            </datalist>
+                        </div>
+                        <div class="form-group">
+                            <label>カスタム色</label>
+                            <input type="color" name="color" value="#64748b">
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label>重要度</label>
                         <select name="importance">
@@ -257,7 +294,7 @@
         <div class="card" style="display: flex; flex-direction: column; position: relative;">
             <h2>状況変化マップ</h2>
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
-                🎨 青（作成日）➔ 赤（期限直前）のグラデーション。面積は $Importance^2 / RemainingDays$ で計算されます。
+                🎨 カスタムカラーのタスクはその色で、指定がないものはすべて「灰色」で統一表示されます。
             </p>
             <div class="treemap-wrapper" id="treemapContainer"></div>
             <div class="detail-overlay" id="detailOverlay"></div>
@@ -341,33 +378,6 @@
             }
         }
 
-        // 🎨 青から赤へ滑らかにRGB補間する関数
-        function getTimelineColor(createdAtStr, deadlineStr) {
-            const now = new Date();
-            const created = new Date(createdAtStr);
-            const deadline = new Date(deadlineStr);
-
-            // 1. 作成日と期日が同じなら強制的に「赤」
-            if (created.toDateString() === deadline.toDateString()) {
-                return 'rgb(239, 68, 68)';
-            }
-
-            const totalDuration = deadline.getTime() - created.getTime();
-            const elapsed = now.getTime() - created.getTime();
-
-            // 進捗割合（0:作成日 ➔ 1:締切日）
-            let ratio = totalDuration > 0 ? elapsed / totalDuration : 1;
-            if (ratio < 0) ratio = 0;
-            if (ratio > 1) ratio = 1;
-
-            // 青(rgb(59, 130, 246)) から 赤(rgb(239, 68, 68)) へ線形補間
-            const r = Math.round(59 + (239 - 59) * ratio);
-            const g = Math.round(130 + (68 - 130) * ratio);
-            const b = Math.round(246 + (68 - 246) * ratio);
-
-            return `rgb(${r}, ${g}, ${b})`;
-        }
-
         // C. アルゴリズム＆レンダリング
         function renderTreemap() {
             const container = document.getElementById('treemapContainer');
@@ -384,16 +394,13 @@
             const now = new Date();
             const labels = {3: '高', 2: '中', 1: '低'};
 
-            // 新計算式によるスコアリング
+            // 新計算式（重要度^2 / 残り日数）
             const scoredTasks = activeTasks.map(task => {
                 const deadline = new Date(task.deadline);
                 const diffTime = deadline.getTime() - now.getTime();
                 let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 
-                // 0日以下（当日または期限超過）の場合は0.5とする
                 const daysDivisor = diffDays <= 0 ? 0.5 : diffDays;
-                
-                // 数式: 重要度^2 / 残り日数
                 const weight = Math.pow(task.importance, 2) / daysDivisor;
                 return { ...task, weight, diffDays };
             });
@@ -409,8 +416,12 @@
                 const node = document.createElement('div');
                 node.className = 'treemap-node';
                 
-                // 期限に連動した色を設定
-                node.style.backgroundColor = getTimelineColor(task.created_at, task.deadline);
+                // 🎨 【変更】color指定があればその色、なければテーマに応じた灰色をセット
+                if (task.color && task.color !== '#64748b') {
+                    node.style.backgroundColor = task.color;
+                } else {
+                    node.style.backgroundColor = 'var(--default-node-color)';
+                }
 
                 let w, h;
                 const currentSliceWeight = sorted.slice(index).reduce((s, t) => s + t.weight, 0);
@@ -429,26 +440,27 @@
                 node.style.width = `${w}px`;
                 node.style.height = `${h}px`;
 
-                // 📐 タイルの面積(W×H)に応じてフォントサイズを動的に拡大縮小
                 const area = w * h;
-                let fontSize = 0.85; // デフォルト(rem)
+                let fontSize = 0.85;
                 if (area > 50000) fontSize = 1.3;
                 else if (area > 25000) fontSize = 1.1;
-                else if (area < 8000) fontSize = 0.65; // 極小マップ用
+                else if (area < 8000) fontSize = 0.65;
 
                 node.style.fontSize = `${fontSize}rem`;
 
                 let dayText = task.diffDays <= 0 ? "🔥 期限直前/超過" : `⏰ あと ${task.diffDays} 日`;
+                let tagText = task.tag ? ` [${task.tag}]` : '';
 
                 node.innerHTML = `
-                    <div class="node-title">${task.title}</div>
+                    <div class="node-title">${task.title}${tagText}</div>
                     <div class="node-size" style="font-size: ${fontSize * 0.8}rem;">${dayText}</div>
                 `;
 
-                // 🔍 ホバー時の詳細表示オーバーレイ処理
+                // オーバーレイ表示（タグ情報も追加）
                 node.addEventListener('mouseenter', () => {
                     overlay.innerHTML = `
                         <strong>🗂 タスク名:</strong> ${task.title}<br>
+                        <strong>🏷️ タグ:</strong> ${task.tag || 'なし'} | 
                         <strong>🚨 重要度:</strong> ${labels[task.importance]} | 
                         <strong>📅 期限:</strong> ${new Date(task.deadline).toLocaleDateString()} (${dayText})<br>
                         <strong>📐 計算ウェイト値:</strong> ${task.weight.toFixed(2)}
