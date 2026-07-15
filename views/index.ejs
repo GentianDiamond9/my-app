@@ -209,7 +209,7 @@
             
             <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-sm">
                 <h2 class="text-lg font-bold mb-4 flex items-center gap-2">📥 タスク新規登録</h2>
-                <form action="/tasks" method="POST" onsubmit="adjustSubmitTime(this)" class="space-y-4">
+                <form action="/tasks" method="POST" class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-[var(--text-muted)] mb-1">📝 タスク名</label>
                         <input type="text" name="title" required placeholder="今すぐやることを入力..." class="w-full p-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-indigo-500 outline-none">
@@ -256,9 +256,6 @@
                     <input type="text" id="taskSearchInput" placeholder="タイトルまたはタグで検索..." class="w-full p-3 pl-10 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:ring-2 focus:ring-indigo-500 outline-none">
                     <span class="absolute left-3.5 top-3.5 text-slate-400 text-sm">🔍</span>
                 </div>
-                <p class="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
-                    ※文字を入力すると、ツリーマップと下の管理リストが連動してリアルタイムに表示を絞り込みます。
-                </p>
             </div>
 
             <div class="p-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl shadow-sm">
@@ -383,63 +380,36 @@
         </div>
     </div>
 
-    <hr style="border: 0; border-top: 1px solid var(--border); margin: 60px 0 20px 0;">
-    <div class="settings-container animate-fade-in" style="max-width: 800px; margin: 0 auto 40px auto; padding: 20px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border);">
-        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; font-weight: 700;">⚙️ システム設定・データ管理</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
-            タスク管理データの保存、バックアップ、およびデータベースの完全初期化を行えます。
-        </p>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <button id="backupBtn" class="btn text-xs" style="background: #2563eb; color: white; display: flex; align-items: center; gap: 6px; font-weight: 600; padding: 10px 18px; border-radius: 8px;">
-                📥 データをエクスポート (JSON)
-            </button>
-            <button id="resetBtn" class="btn text-xs" style="background: #dc2626; color: white; display: flex; align-items: center; gap: 6px; font-weight: 600; padding: 10px 18px; border-radius: 8px;">
-                ⚠️ 全データを完全リセット
-            </button>
-        </div>
-    </div>
-
     <script>
         let allTasks = <%- JSON.stringify(tasks) %>;
         let currentTargetTaskId = null;
         let currentTargetTaskTitle = "";
 
-function formatToJST(dateString) {
-    if (!dateString) return "-";
-    const d = new Date(dateString);
-    
-    // Intl.DateTimeFormat を使い、OSやサーバー環境を問わず強制的に日本時間にパース
-    const formatter = new Intl.DateTimeFormat('ja-JP', {
-        timeZone: 'Asia/Tokyo',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-    });
-    
-    // 「YYYY/MM/DD, HH:mm」といったフォーマットからカンマを除去して整形
-    return formatter.format(d).replace(',', '');
-}
-
-        // 🔥 【登録時の時刻調整】ブラウザローカル基準の時間をそのままJSTとして送信
-        function adjustSubmitTime(form) {
-            const input = form.querySelector('#defaultDeadline');
-            if (input && input.value) {
-                // 送信時にそのまま送信されるため、サーバー側(TZ=Asia/Tokyo)で正確にパースされます。
-            }
+        // 🔥 【対策A】強制的に日本時間(Asia/Tokyo)のタイムゾーンに解釈してフォーマットする関数
+        function formatToJST(dateString) {
+            if (!dateString) return "-";
+            const d = new Date(dateString);
+            
+            const formatter = new Intl.DateTimeFormat('ja-JP', {
+                timeZone: 'Asia/Tokyo',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            return formatter.format(d).replace(',', '');
         }
 
-        // 初期ロード処理
         window.addEventListener('load', () => {
-            // 日本のタイムゾーンに基づいた日付ピッカー初期化
+            // カレンダーピッカー初期化 (クライアントの現時刻設定)
             const now = new Date();
             const offset = now.getTimezoneOffset() * 60000;
             const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
             document.getElementById('defaultDeadline').value = localISOTime;
 
-            // 各タスク表示の時刻フォーマットを反映
+            // 対策Aのフォーマッタを介して画面上に期限を表示
             document.querySelectorAll('.deadline-label').forEach(el => {
                 const utc = el.getAttribute('data-utc');
                 el.innerText = `📅 期限: ${formatToJST(utc)}`;
@@ -455,7 +425,7 @@ function formatToJST(dateString) {
             setupSettingsEvents();
             setupMemoEvents();
             setupChoiceEvents();
-            setupSearchEvent(); // 🔎 検索イベントバインド
+            setupSearchEvent();
         });
 
         // A. テーマ切り替え
@@ -527,13 +497,12 @@ function formatToJST(dateString) {
             document.getElementById('monthRateBar').style.width = `${monthRate}%`;
         }
 
-        // 🔎 【新規】リアルタイム検索フィルター処理
+        // 🔎 リアルタイム検索フィルター処理
         function setupSearchEvent() {
             const searchInput = document.getElementById('taskSearchInput');
             searchInput.addEventListener('input', (e) => {
                 const query = e.target.value.toLowerCase().trim();
                 
-                // 1. 管理リスト (HTML) の表示・非表示コントロール
                 const cards = document.querySelectorAll('.task-card');
                 cards.forEach(card => {
                     const title = card.getAttribute('data-title') || "";
@@ -545,7 +514,6 @@ function formatToJST(dateString) {
                     }
                 });
 
-                // 2. ツリーマップ描画フィルタリング
                 renderTreemap(query);
             });
         }
@@ -719,7 +687,7 @@ function formatToJST(dateString) {
             };
 
             document.getElementById('resetBtn').onclick = async () => {
-                if (!confirm("⚠️ 【警告】本当に完全に初期化しますか？\n登録した全タスクデータ、メモデータが完全に消失します。この操作は取り消せません。")) return;
+                if (!confirm("⚠️ 【警告】本当に完全に初期化しますか？")) return;
                 try {
                     const response = await fetch('/tasks', { method: 'DELETE' });
                     if (response.ok) {
@@ -812,9 +780,8 @@ function formatToJST(dateString) {
             const labels = { 1: 'Low', 2: 'Medium', 3: 'High' };
             const now = new Date();
 
-            // 検索ワードが存在する場合に絞り込む
             const filteredData = allTasks.filter(t => {
-                if (t.is_completed) return false; // 完了済みは表示しない
+                if (t.is_completed) return false;
                 if (!searchQuery) return true;
                 const titleMatch = t.title.toLowerCase().includes(searchQuery);
                 const tagMatch = t.tag && t.tag.toLowerCase().includes(searchQuery);
@@ -826,7 +793,6 @@ function formatToJST(dateString) {
                 return;
             }
 
-            // ウエイト計算
             const layouts = filteredData.map(t => {
                 const diffTime = new Date(t.deadline).getTime() - now.getTime();
                 let urgencyScore = 1;
@@ -843,7 +809,6 @@ function formatToJST(dateString) {
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
 
-            // スコア分割による長方形算出
             function treemapSquarify(data, x, y, width, height) {
                 if (data.length === 0) return;
                 if (data.length === 1) {
@@ -881,7 +846,6 @@ function formatToJST(dateString) {
             layouts.sort((a, b) => b.weight - a.weight);
             treemapSquarify(layouts, 0, 0, containerWidth, containerHeight);
 
-            // ノードの配置
             layouts.forEach(layout => {
                 if (!layout.rect) return;
                 const node = document.createElement('div');
@@ -943,7 +907,6 @@ function formatToJST(dateString) {
             });
         }
 
-        // リサイズ時のDebounce間引き処理
         let resizeTimer;
         window.addEventListener('resize', () => {
             clearTimeout(resizeTimer);
