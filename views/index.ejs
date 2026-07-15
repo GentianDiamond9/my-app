@@ -403,16 +403,16 @@
         }
 
 window.addEventListener('load', () => {
-    const now = new Date();
+const now = new Date();
     
-    // 日本時間のローカルタイム値を個別に取得してフォーマットを組み立てるのが最も安全です
+    // タイムゾーンのマイナス計算をやめ、安全にローカル日時のパーツを取得して組み立てます
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const date = String(now.getDate()).padStart(2, '0');
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     
-    // datetime-localに適合する YYYY-MM-DDTHH:mm フォーマットを生成
+    // datetime-local 形式 (YYYY-MM-DDTHH:mm)
     const localISOString = `${year}-${month}-${date}T${hours}:${minutes}`;
     
     document.getElementById('defaultDeadline').value = localISOString;

@@ -3,11 +3,10 @@ import { TaskService } from "../services/task.service";
 
 const taskService = new TaskService();
 
-// 💡 【重要】JST変換ヘルパー関数
-// UTC時刻に9時間を足して日本時間に変換します
-const toJST = (date: Date | string) => {
-  const d = new Date(date);
-  return new Date(d.getTime() + 9 * 60 * 60 * 1000);
+// 💡 【修正】手動でミリ秒を加算する JST 変換を廃止します。
+// Node.jsのTZ="Asia/Tokyo"設定により、Dateオブジェクト自体が自動的に正しいローカル時間を解釈します。
+const parseDate = (date: Date | string) => {
+  return new Date(date);
 };
 
 export class TaskController {
@@ -16,11 +15,11 @@ export class TaskController {
     try {
       const rawTasks = await taskService.getAllTasks();
 
-      // 日時をJSTに変換してからソート・表示
+      // 日時を Date オブジェクトに変換してからソート・表示
       const tasks = rawTasks
         .map((t) => ({
           ...t,
-          deadline: toJST(t.deadline),
+          deadline: parseDate(t.deadline),
         }))
         .sort((a, b) => {
           const aComp = a.is_completed ? 1 : 0;
@@ -47,8 +46,8 @@ export class TaskController {
         return;
       }
 
-      // 💡 クライアントからの時刻を Date として保存
-      // .env に TZ=Asia/Tokyo があれば、Node.js が適切に UTC 変換してDBへ保存します
+      // 💡 クライアントからの "YYYY-MM-DDTHH:mm" 形式を、
+      // タイムゾーンが混ざらないようにローカル時刻として解釈して保存します
       await taskService.createTask({
         title,
         deadline: new Date(deadline),
@@ -79,6 +78,7 @@ export class TaskController {
       res.status(500).json({ message: "Error updating task", error });
     }
   }
+
   // 4. DELETE /tasks/:id
   async delete(req: Request, res: Response): Promise<void> {
     try {
@@ -154,7 +154,7 @@ export class TaskController {
       const rawTasks = await taskService.getAllTasks();
       const completedTasks = rawTasks
         .filter((t) => t.is_completed)
-        .map((t) => ({ ...t, deadline: toJST(t.deadline) }));
+        .map((t) => ({ ...t, deadline: parseDate(t.deadline) }));
 
       res.render("history", { tasks: completedTasks });
     } catch (error) {
