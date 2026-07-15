@@ -395,6 +395,28 @@
             </button>
         </div>
     </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-8 pb-12">
+    <div class="bg-[var(--card-bg)] border border-[var(--border)] rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div>
+            <h3 class="text-lg font-bold">データ管理設定</h3>
+            <p class="text-xs text-[var(--text-muted)]">アプリ内のすべてのタスクデータをリセット、エクスポート、またはバックアップファイルからインポートできます。</p>
+        </div>
+        <div class="flex flex-wrap gap-3 w-full sm:w-auto">
+            <input type="file" id="importJsonInput" accept=".json" class="hidden" />
+            <button id="importJsonBtn" class="flex-1 sm:flex-none px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-xl shadow transition duration-200 flex items-center justify-center gap-2">
+                📥 データをJSONから読み込む
+            </button>
+
+            <button id="exportJsonBtn" class="flex-1 sm:flex-none px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-xl shadow transition duration-200 flex items-center justify-center gap-2">
+                📦 データをJSONで保存
+            </button>
+            <button id="deleteAllBtn" class="flex-1 sm:flex-none px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium rounded-xl shadow transition duration-200 flex items-center justify-center gap-2">
+                ⚠️ データを全削除
+            </button>
+        </div>
+    </div>
+</div>
 </div>
     <script>
         let allTasks = <%- JSON.stringify(tasks) %>;
@@ -1006,6 +1028,68 @@ const now = new Date();
                 console.error('Error deleting all tasks:', error);
                 alert('通信エラーが発生しました。');
             }
+        });
+        // 📥 インポートボタンが押されたら、隠しファイルInputをクリックさせる
+        const importJsonBtn = document.getElementById('importJsonBtn');
+        const importJsonInput = document.getElementById('importJsonInput');
+
+        importJsonBtn.addEventListener('click', () => {
+            importJsonInput.click();
+        });
+
+        // 🔄 ファイルが選択されたときの処理
+        importJsonInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    // 1. 読み込んだJSONのパース確認
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    if (!Array.isArray(importedData)) {
+                        alert('無効なバックアップフォーマットです。タスクの配列形式である必要があります。');
+                        return;
+                    }
+
+                    // 2. 「上書き」か「追加（統合）」かを選択してもらう
+                    const mode = confirm(
+                        `タスクデータが ${importedData.length} 件見つかりました。\n\n` +
+                        `【OK】を押すと、現在のデータをすべて消去して「上書きインポート」します。\n` +
+                        `【キャンセル】を押すと、現在のデータに残したまま「追加（統合）インポート」します。`
+                    ) ? 'overwrite' : 'append';
+
+                    // 3. サーバーへインポート用のリクエストを送信
+                    const response = await fetch('/tasks/import', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            mode: mode,
+                            tasks: importedData
+                        })
+                    });
+
+                    if (response.ok) {
+                        alert('データのインポートが完了しました！');
+                        window.location.reload(); // 画面を更新して反映
+                    } else {
+                        const errorMsg = await response.text();
+                        alert(`インポートに失敗しました: ${errorMsg}`);
+                    }
+
+                } catch (error) {
+                    console.error('JSONの解析に失敗しました:', error);
+                    alert('ファイルの解析に失敗しました。正しいJSONファイルかご確認ください。');
+                } finally {
+                    // 次回同じファイルを選んでもイベントが発火するように初期化
+                    importJsonInput.value = '';
+                }
+            };
+
+            reader.readAsText(file);
         });
     </script>
 </body>

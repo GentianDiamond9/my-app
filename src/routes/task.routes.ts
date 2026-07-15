@@ -31,4 +31,9 @@ router.post("/tasks/:taskId/memos", (req, res) =>
   taskController.saveMemo(req, res),
 );
 
+// ⚙️ データインポート機能 (上書き・追加)
+router.post("/tasks/import", (req, res) =>
+  taskController.importTasks(req, res),
+);
+
 export default router;

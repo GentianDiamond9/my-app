@@ -161,4 +161,42 @@ export class TaskController {
       res.status(500).send("Error rendering history page");
     }
   }
+  async importTasks(req: Request, res: Response): Promise<void> {
+    try {
+      const { mode, tasks } = req.body;
+
+      if (!Array.isArray(tasks)) {
+        res.status(400).send("インポートデータが配列ではありません。");
+        return;
+      }
+
+      // --- 💡 「上書き」モードの場合は、現在のデータをまず全削除する ---
+      if (mode === "overwrite") {
+        // 例: 全件削除処理 (ServiceやRepositoryの既存のdeleteAllなどを呼び出す)
+        // await this.taskService.deleteAllTasks();
+      }
+
+      // --- 💡 各タスクデータをデータベース/ストレージへ保存する ---
+      // ※各タスクがIDの衝突を起こさないよう、追加(append)の場合はIDを新しく生成し直したり、
+      // 必要なデータバリデーション（titleやdeadlineがあるか等）を通すと安全です。
+      for (const taskData of tasks) {
+        // プロジェクトのデータモデル構成に合わせて安全に整形して追加
+        await this.taskService.create({
+          title: taskData.title || "無題のインポートタスク",
+          tag: taskData.tag || "",
+          deadline: taskData.deadline
+            ? new Date(taskData.deadline)
+            : new Date(),
+          importance: Number(taskData.importance) || 1,
+          color: taskData.color || "#6366f1",
+          isCompleted: !!taskData.isCompleted, // 歴史データや完了状態の維持
+        });
+      }
+
+      res.status(200).send("インポート成功");
+    } catch (error) {
+      console.error("Error importing tasks:", error);
+      res.status(500).send("サーバー内部エラーでインポートに失敗しました。");
+    }
+  }
 }
