@@ -402,12 +402,20 @@
             return formatter.format(d).replace(',', '');
         }
 
-        window.addEventListener('load', () => {
-            // カレンダーピッカー初期化 (クライアントの現時刻設定)
-            const now = new Date();
-            const offset = now.getTimezoneOffset() * 60000;
-            const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
-            document.getElementById('defaultDeadline').value = localISOTime;
+window.addEventListener('load', () => {
+    const now = new Date();
+    
+    // 日本時間のローカルタイム値を個別に取得してフォーマットを組み立てるのが最も安全です
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const date = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    
+    // datetime-localに適合する YYYY-MM-DDTHH:mm フォーマットを生成
+    const localISOString = `${year}-${month}-${date}T${hours}:${minutes}`;
+    
+    document.getElementById('defaultDeadline').value = localISOString;
 
             // 対策Aのフォーマッタを介して画面上に期限を表示
             document.querySelectorAll('.deadline-label').forEach(el => {
